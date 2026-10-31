@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2b705">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sous-détail">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Calculette sous-détail VRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+/* Concept : carnet de chantier de poche — une colonne, barre d'onglets en bas, chiffres en mono, jaune de signalisation pour le prix de vente. */
+:root{
+  --bg:#eef1f3; --surface:#ffffff; --surface2:#f6f8f9; --line:#d5dbe0; --fg:#1b2329; --muted:#5d6b75;
+  --accent:#f2b705; --accent-ink:#1b2329; --accent-soft:#fdf3cf;
+  --mo:#3f6fa8; --mat:#c4692b; --four:#5e8a3a; --st:#7a5aa6; --evac:#8d7b5a;
+  --ok:#2e7d4f; --warn:#b26a00; --bad:#b3261e; --warn-bg:#fff4e0; --bad-bg:#fde8e6;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171b; --surface:#1a2127; --surface2:#20282f; --line:#313c45; --fg:#e6ebee; --muted:#9aa8b2;
+  --accent:#f5c22a; --accent-ink:#12171b; --accent-soft:#3a3214;
+  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c;
+  --ok:#5fbf86; --warn:#e3a33c; --bad:#ef6b62; --warn-bg:#3a2c12; --bad-bg:#3d1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171b; --surface:#1a2127; --surface2:#20282f; --line:#313c45; --fg:#e6ebee; --muted:#9aa8b2;
+  --accent:#f5c22a; --accent-ink:#12171b; --accent-soft:#3a3214;
+  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c;
+  --ok:#5fbf86; --warn:#e3a33c; --bad:#ef6b62; --warn-bg:#3a2c12; --bad-bg:#3d1c1a; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45}
+*{box-sizing:border-box}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(96px + env(safe-area-inset-bottom,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .in{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:10px;min-height:56px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0}
+h1{font-size:1.45rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+h2{font-size:1.25rem}
+h3{font-size:1.05rem;text-transform:uppercase;letter-spacing:.06em}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;min-height:42px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{min-height:34px;padding:5px 10px;font-size:.88rem}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.tab:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+input[type=text],input[type=search],select{width:100%;border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:9px 10px;min-height:42px}
+input.numin{font-family:var(--f-mono);text-align:right}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:460px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabbar .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.tab{background:none;border:0;padding:12px 4px 10px;font-family:var(--f-display);font-size:1.02rem;font-weight:600;letter-spacing:.03em;color:var(--muted);cursor:pointer;border-top:3px solid transparent}
+.tab[aria-current="page"]{color:var(--fg);border-top-color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:99px;padding:2px 9px;border:1px solid var(--line);color:var(--muted)}
+.pill.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.pill.ok{color:var(--ok)}
+.alert{border-radius:8px;padding:10px 12px;font-size:.92rem}
+.alert.warn{background:var(--warn-bg);color:var(--warn)}
+.alert.bad{background:var(--bad-bg);color:var(--bad)}
+.alert.info{background:var(--surface2);color:var(--muted)}
+/* liste des ouvrages */
+.ouv-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;cursor:pointer}
+.ouv-item:hover{border-color:var(--muted)}
+.ouv-item .code{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.ouv-item .des{font-weight:600;overflow-wrap:anywhere}
+.ouv-item .pv{text-align:right;font-family:var(--f-display);font-size:1.35rem;font-weight:700}
+.ouv-item .pv small{display:block;font-family:var(--f-body);font-size:.75rem;color:var(--muted);font-weight:500}
+/* résumé collant */
+.sumbar{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:15;background:var(--bg);padding-block:8px}
+.sumbar .card{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;padding:10px 14px}
+.kpi .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.kpi .val{font-family:var(--f-display);font-size:1.5rem;font-weight:700;line-height:1.1}
+.kpi.pv .val{background:var(--accent);color:var(--accent-ink);display:inline-block;padding:0 8px;border-radius:5px}
+.bar{grid-column:1/-1;display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface2)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* blocs */
+.bloc{border-left:4px solid var(--c);padding-left:12px}
+.bloc-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bloc-head h3{color:var(--c)}
+.bloc-head .tot{margin-left:auto;font-family:var(--f-mono);font-weight:500}
+.ligne{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.ligne .top{display:flex;gap:8px;align-items:flex-start}
+.ligne .nom{font-weight:600;flex:1;min-width:0;overflow-wrap:anywhere}
+.ligne .calc{font-size:.84rem;color:var(--muted);font-family:var(--f-mono);overflow-wrap:anywhere}
+.ligne .calc b{color:var(--fg);font-weight:500}
+.lib-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center}
+.lib-item .pu{font-family:var(--f-mono);text-align:right}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:.9rem}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+table.res{width:100%;border-collapse:collapse;font-size:.92rem}
+table.res td{padding:6px 0;border-bottom:1px solid var(--line)}
+table.res td:last-child{text-align:right;font-family:var(--f-mono)}
+table.res tr.big td{font-family:var(--f-display);font-size:1.15rem;font-weight:700;border-bottom:0}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(10,14,17,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet .panel{background:var(--surface);width:100%;max-width:760px;max-height:88%;overflow:auto;border-radius:16px 16px 0 0;padding-block:16px calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;max-width:calc(100% - 32px)}
+.empty{text-align:center;padding:28px 12px}
+.steps{counter-reset:s;display:flex;flex-direction:column;gap:10px;text-align:left}
+.steps li{list-style:none;display:flex;gap:10px;align-items:flex-start}
+.steps li::before{counter-increment:s;content:counter(s);font-family:var(--f-display);font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:50%;width:26px;height:26px;flex:none;display:grid;place-items:center}
+.steps{padding:0;margin:0}
+.target{background:var(--accent-soft);border-color:transparent}
+@media (prefers-reduced-motion:no-preference){.btn,.tab{transition:background .15s,border-color .15s}}
+</style>
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+
+<header class="top"><div class="in">
+  <button class="btn ghost sm" id="backBtn" hidden aria-label="Retour à la liste">← Liste</button>
+  <h1 id="title">Ouvrages</h1>
+  <span class="pill" id="hdrPill" hidden></span>
+</div></header>
+
+<main class="wrap" id="app"></main>
+
+<nav class="tabbar" aria-label="Sections"><div class="in">
+  <button class="tab" data-view="list" id="tab-list">Ouvrages</button>
+  <button class="tab" data-view="lib" id="tab-lib">Bibliothèque</button>
+  <button class="tab" data-view="set" id="tab-set">Réglages</button>
+</div></nav>
+
+<div id="sheetHost"></div>
+<div id="toastHost"></div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- données ---------- */
+const KEY='sdp_vrd_v1';
+const CATS={MO:{nom:"Main-d'œuvre",c:'--mo'},MAT:{nom:'Matériel',c:'--mat'},FOUR:{nom:'Matériaux',c:'--four'},ST:{nom:'Sous-traitance',c:'--st'},EVAC:{nom:'Évacuation',c:'--evac'}};
+const UNITES_OUV=['m²','ml','m³','t','U','J','H','Ft'];
+const UNITES_MAT=['t','m³','m²','ml','U','kg','sac','l'];
+const uid=()=>Math.random().toString(36).slice(2,10);
+function defaults(){
+  const L=(cat,nom,unite)=>({id:uid(),cat,nom,unite,pu:null,remise:0,transport:0,famille:''});
+  return {v:1,
+    settings:{hj:8,kMode:'construit',kDirect:1.15,pct:{enc:5,sec:0.5,mag:0.5,siege:14,etu:0.5},ba:2,kST:1.23,arrondi:true},
+    lib:[
+      L('MO','Chef de chantier','h'),L('MO',"Chef d'équipe",'h'),L('MO','Ouvrier / compagnon','h'),L('MO',"Conducteur d'engins",'h'),L('MO','Chauffeur PL','h'),
+      L('MAT','Pelle sur pneus < 18 t','j'),L('MAT','Mini-pelle < 10 t','j'),L('MAT','Camion 8×4','j'),L('MAT','Camion 8×4 grue','j'),L('MAT','Finisseur','j'),L('MAT','Compacteur tandem','j'),L('MAT','Plaque vibrante','j'),L('MAT','Tronçonneuse / scie à sol','j'),
+      L('FOUR','BBSG 0/10','t'),L('FOUR','GNT 0/31,5','t'),L('FOUR','Sable 0/4','t'),L('FOUR','Béton C25/30','m³'),L('FOUR','Mortier','m³'),L('FOUR','Bordure T2','ml'),L('FOUR','Décharge CL3 inertes','t'),
+      L('ST','Sous-traitance (à nommer)','U')
+    ],
+    ouv:[]};
+}
+let S;
+function load(){
+  try{const raw=localStorage.getItem(KEY); if(raw){const d=JSON.parse(raw); if(d&&d.v===1&&d.settings&&Array.isArray(d.lib)&&Array.isArray(d.ouv)) return d;}}catch(e){}
+  return defaults();
+}
+let storageOK=true;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOK=true}catch(e){storageOK=false}}
+S=load();
+
+/* ---------- utilitaires ---------- */
+const $=s=>document.querySelector(s);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function num(v){if(v===null||v===undefined)return null;if(typeof v==='number')return isFinite(v)?v:null;const t=String(v).replace(/\s/g,'').replace(',','.');if(t==='')return null;const n=Number(t);return isFinite(n)?n:null}
+const nf=(d)=>new Intl.NumberFormat('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const F2=nf(2),F3=nf(3),F0=nf(0);
+function eur(v,d=2){return v===null||v===undefined||!isFinite(v)?'—':(d===0?F0:F2).format(v)+' €'}
+function fx(v,d=2){if(v===null||v===undefined||!isFinite(v))return '—';return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:d}).format(v)}
+function inval(v){return v===null||v===undefined?'':String(v).replace('.',',')}
+const ceilCent=x=>Math.ceil(Math.round(x*1e6)/1e4)/100;
+function toast(msg){const h=$('#toastHost');h.innerHTML='<div class="toast" role="status">'+esc(msg)+'</div>';clearTimeout(toast.t);toast.t=setTimeout(()=>h.innerHTML='',2600)}
+
+/* ---------- coefficients et calcul ---------- */
+function coefK(){const s=S.settings;if(s.kMode==='direct')return num(s.kDirect)||1;const p=s.pct;const fg=1+((num(p.enc)||0)+(num(p.sec)||0)+(num(p.mag)||0)+(num(p.siege)||0)+(num(p.etu)||0))/100;return fg*(1+(num(s.ba)||0)/100)}
+function libGet(id){return S.lib.find(x=>x.id===id)||null}
+function lineRes(l){ // valeurs effectives d'une ligne (bibliothèque ou ligne libre)
+  const b=l.ref?libGet(l.ref):null;
+  const o={nom:b?b.nom:(l.nom||'Ligne libre'),unite:b?b.unite:(l.unite||''),famille:b?b.famille:'',libPU:b?num(b.pu):null};
+  const ov=num(l.puSpec);
+  o.pu=ov!==null?ov:(b?num(b.pu):num(l.pu));
+  o.remise=b?(num(b.remise)||0):(num(l.remise)||0);
+  o.transport=b?(num(b.transport)||0):(num(l.transport)||0);
+  o.missing=o.pu===null;
+  o.broken=!!l.ref&&!b;
+  return o;
+}
+function compute(o){
+  const s=S.settings,K=coefK(),kST=num(s.kST)||1;
+  const R=num(o.r);const Q=num(o.q);
+  const dpu=R&&R>0?1/R:1; // jours par unité
+  const blocs={MO:0,MAT:0,FOUR:0,ST:0,EVAC:0};
+  let A=0,B=0,Sst=0; const det=[]; const warn=[];
+  for(const l of o.lignes){
+    const d={l,bloc:l.bloc,parts:[]};
+    if(l.bloc==='MO'||l.bloc==='MAT'){
+      const r=lineRes(l); const nb=num(l.nb)??0; const isH=(r.unite||'').toLowerCase()==='h'; const hj=isH?(num(l.hj)??s.hj):1;
+      const parJour=nb*hj*(r.pu||0); const u=parJour*dpu;
+      d.r=r;d.parJour=parJour;d.u=u;d.qteJour=nb*hj;d.isH=isH;d.hj=hj;d.nb=nb;
+      A+=parJour; blocs[l.bloc]+=u;
+      if(r.missing)warn.push('Prix manquant : '+r.nom);
+    }else if(l.bloc==='FOUR'||l.bloc==='ST'){
+      const r=lineRes(l); const ratio=num(l.ratio)??0; const pertes=num(l.pertes)||0;
+      const punet=l.bloc==='FOUR'?(r.pu||0)*(1-r.remise/100)+r.transport:(r.pu||0);
+      const qu=ratio*(1+pertes/100); const u=qu*punet;
+      d.r=r;d.ratio=ratio;d.qu=qu;d.punet=punet;d.u=u;d.pertes=pertes;
+      if(l.bloc==='ST'){Sst+=u}else{B+=u}
+      blocs[l.bloc]+=u;
+      if(r.missing)warn.push('Prix manquant : '+r.nom);
+    }else if(l.bloc==='EVAC'){
+      const cam=lineRes({ref:l.camion}),chf=lineRes({ref:l.chauffeur}),dch=lineRes({ref:l.decharge});
+      const tu=num(l.tu)??0,tpj=num(l.tpj)||0,hj=num(l.hj)??s.hj;
+      const jcam=tpj>0?tu/tpj:0, hch=jcam*hj, tdech=tu;
+      const uc=jcam*(cam.pu||0),uh=hch*(chf.pu||0),ud=tdech*(dch.pu||0); const u=uc+uh+ud;
+      d.cam=cam;d.chf=chf;d.dch=dch;d.jcam=jcam;d.hch=hch;d.tdech=tdech;d.uc=uc;d.uh=uh;d.ud=ud;d.u=u;d.tu=tu;d.tpj=tpj;d.hj=hj;
+      B+=u;blocs.EVAC+=u;
+      if(!(tpj>0)&&tu>0)warn.push('Évacuation : indique les tonnes transportées par camion et par jour');
+      [cam,chf,dch].forEach(x=>{if(l.camion||l.chauffeur||l.decharge){if(x.missing&&!x.broken)warn.push('Prix manquant : '+x.nom)}});
+    }
+    det.push(d);
+  }
+  const ds=blocs.MO+blocs.MAT+blocs.FOUR+blocs.ST+blocs.EVAC;
+  const pvRaw=K*(ds-blocs.ST)+kST*blocs.ST;
+  const pv=s.arrondi?ceilCent(pvRaw):Math.round(pvRaw*100)/100;
+  const res={R,Q,dpu,blocs,ds,K,kST,pvRaw,pv,A,B,Sst,det,warn:[...new Set(warn)]};
+  if(!(R>0)&&A>0)res.noR=true;
+  if(Q>0){res.dsTot=ds*Q;res.pvTot=pv*Q;res.marge=res.pvTot-res.dsTot;res.duree=R>0?Q/R:null}
+  return res;
+}
+function rendementCible(res,target){ // R tel que PV = cible
+  const s=S.settings; const T=s.arrondi?target-0.001:target;
+  const den=T-res.K*res.B-res.kST*res.Sst;
+  if(!(res.A>0))return {err:'Aucune ligne de main-d’œuvre ou de matériel : le rendement ne change pas le prix.'};
+  if(den<=0)return {err:'Impossible : les matériaux, l’évacuation et la sous-traitance dépassent déjà ce prix de vente.'};
+  return {R:res.K*res.A/den};
+}
+
+/* ---------- vues ---------- */
+let view='list', curId=null;
+try{const t=localStorage.getItem(KEY+'_tab');if(t&&['list','lib','set'].includes(t))view=t}catch(e){}
+let libCat='MO';
+
+function setView(v,id){view=v;curId=id??null;if(v!=='edit'){try{localStorage.setItem(KEY+'_tab',v)}catch(e){}}render();window.scrollTo(0,0)}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+$('#backBtn').addEventListener('click',()=>setView('list'));
+
+function render(){
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-current',(b.dataset.view===view||(view==='edit'&&b.dataset.view==='list'))?'page':'false'));
+  $('#backBtn').hidden=view!=='edit';
+  $('#hdrPill').hidden=true;
+  if(view==='list')renderList();else if(view==='edit')renderEdit();else if(view==='lib')renderLib();else renderSet();
+}
+
+/* ----- liste des ouvrages ----- */
+let filtre='';
+function renderList(){
+  $('#title').textContent='Ouvrages';
+  const app=$('#app');
+  const libVide=S.lib.filter(x=>num(x.pu)===null).length;
+  let h='<div class="stack" style="padding-top:14px">';
+  if(!storageOK)h+='<div class="alert bad">Safari refuse l’enregistrement local (navigation privée ?) : tes saisies seront perdues à la fermeture. Fais une sauvegarde dans Réglages.</div>';
+  h+='<div class="row"><input type="search" id="q" placeholder="Rechercher un ouvrage ou un n° de prix" value="'+esc(filtre)+'" class="grow" aria-label="Rechercher"><button class="btn primary" id="newOuv">+ Nouvel ouvrage</button></div>';
+  const list=S.ouv.filter(o=>!filtre||(o.code+' '+o.des).toLowerCase().includes(filtre.toLowerCase())).sort((a,b)=>(b.upd||0)-(a.upd||0));
+  if(!S.ouv.length){
+    h+='<div class="card empty stack"><h2>Ton premier sous-détail</h2><ol class="steps">'+
+      '<li><span>Dans <b>Réglages</b>, vérifie ton coefficient (frais généraux, bénéfice et aléas) et tes heures par jour.</span></li>'+
+      '<li><span>Dans <b>Bibliothèque</b>, saisis tes prix : taux horaires, engins à la journée, matériaux. '+(libVide?'<b>'+libVide+' lignes attendent un prix.</b>':'')+'</span></li>'+
+      '<li><span>Crée un ouvrage : désignation, unité, rendement, puis ajoute les lignes de chaque bloc.</span></li></ol>'+
+      '<div class="row" style="justify-content:center"><button class="btn" id="goLib">Remplir la bibliothèque</button><button class="btn primary" id="newOuv2">Créer un ouvrage</button></div></div>';
+  }else if(!list.length){h+='<p class="muted">Aucun ouvrage ne correspond à « '+esc(filtre)+' ».</p>'}
+  for(const o of list){
+    const r=compute(o);
+    const st=r.warn.length||r.noR?'<span class="pill warn">À compléter</span>':'';
+    h+='<div class="card ouv-item" data-id="'+o.id+'" role="button" tabindex="0"><div><div class="code">'+esc(o.code||'sans n°')+' · '+esc(o.unite)+'</div><div class="des">'+esc(o.des||'Sans désignation')+'</div><div class="small muted">DS '+eur(r.ds)+' · rendement '+(r.R?fx(r.R)+' '+esc(o.unite)+'/j':'—')+' '+st+'</div></div><div class="pv">'+eur(r.pv)+'<small>PV HT / '+esc(o.unite)+'</small></div></div>';
+  }
+  if(S.ouv.length)h+='<div class="row"><button class="btn" id="expAll">Exporter tout (Excel QDV)</button></div>';
+  h+='</div>';
+  app.innerHTML=h;
+  $('#q').addEventListener('input',e=>{filtre=e.target.value;const pos=e.target.selectionStart;renderList();const q=$('#q');q.focus();try{q.setSelectionRange(pos,pos)}catch(_){}});
+  [$('#newOuv'),$('#newOuv2')].forEach(b=>b&&b.addEventListener('click',newOuv));
+  $('#goLib')&&$('#goLib').addEventListener('click',()=>setView('lib'));
+  $('#expAll')&&$('#expAll').addEventListener('click',()=>exportXLSX(S.ouv,'Sous-details QDV'));
+  app.querySelectorAll('.ouv-item').forEach(el=>{const go=()=>setView('edit',el.dataset.id);el.addEventListener('click',go);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});
+}
+function newOuv(){const o={id:uid(),code:'',des:'',unite:'m²',q:null,r:null,lignes:[],upd:Date.now()};S.ouv.push(o);save();setView('edit',o.id)}
+
+/* ----- éditeur d'ouvrage ----- */
+function cur(){return S.ouv.find(o=>o.id===curId)}
+function touch(o){o.upd=Date.now();save()}
+function renderEdit(){
+  const o=cur(); if(!o){setView('list');return}
+  $('#title').textContent=o.des||'Nouvel ouvrage';
+  const app=$('#app'); const r=compute(o);
+  let h='<div class="sumbar" id="sumbar">'+sumHTML(o,r)+'</div><div class="stack">';
+  // en-tête ouvrage
+  h+='<div class="card stack"><div class="grid2"><div class="field"><label for="f-code">N° de prix</label><input type="text" id="f-code" value="'+esc(o.code)+'" placeholder="V425.018.42.0023.1"></div>'+
+     '<div class="field"><label for="f-unite">Unité</label><select id="f-unite">'+UNITES_OUV.map(u=>'<option'+(u===o.unite?' selected':'')+'>'+u+'</option>').join('')+'</select></div></div>'+
+     '<div class="field"><label for="f-des">Désignation</label><input type="text" id="f-des" value="'+esc(o.des)+'" placeholder="Enrobé BBSG 0/10 ép. 6 cm"></div>'+
+     '<div class="grid3"><div class="field"><label for="f-r">Rendement ('+esc(o.unite)+'/j)</label><input type="text" inputmode="decimal" class="numin" id="f-r" value="'+inval(o.r)+'" placeholder="400"></div>'+
+     '<div class="field"><label for="f-q">Quantité (option)</label><input type="text" inputmode="decimal" class="numin" id="f-q" value="'+inval(o.q)+'" placeholder="—"></div>'+
+     '<div class="field"><label>Durée</label><div class="mono" id="f-duree" style="padding:10px 2px">'+(r.duree?fx(r.duree,2)+' j':'—')+'</div></div></div>'+
+     (r.noR?'<div class="alert warn">Pas de rendement : la main-d’œuvre et le matériel sont comptés <b>1 jour par '+esc(o.unite)+'</b>. Saisis un rendement.</div>':'')+
+     '</div>';
+  // blocs
+  for(const b of ['MO','MAT','FOUR','EVAC','ST']){
+    const lines=r.det.filter(d=>d.bloc===b);
+    h+='<section class="bloc stack" style="--c:var('+CATS[b].c+')"><div class="bloc-head"><h3>'+CATS[b].nom+'</h3><span class="tot">'+eur(r.blocs[b])+' / '+esc(o.unite)+'</span></div>';
+    for(const d of lines)h+=ligneHTML(o,d);
+    h+='<div class="row"><button class="btn sm" data-add="'+b+'">+ Ajouter '+({MO:'une ressource',MAT:'un engin',FOUR:'un matériau',EVAC:'une évacuation',ST:'une sous-traitance'})[b]+'</button></div></section>';
+  }
+  // valeur cible
+  h+='<div class="card target stack"><h3>Valeur cible</h3><p class="small" style="margin:0">Tu fixes le prix de vente, la calculette trouve le rendement.</p>'+
+     '<div class="row"><div class="field grow"><label for="f-cible">Prix de vente visé (€ HT / '+esc(o.unite)+')</label><input type="text" inputmode="decimal" class="numin" id="f-cible" value="'+inval(o.cible)+'" placeholder="'+(r.pv?inval(r.pv):'')+'"></div></div><div id="cibleOut"></div></div>';
+  // résultat détaillé
+  h+='<div class="card stack" id="resCard">'+resHTML(o,r)+'</div>';
+  // actions
+  h+='<div class="row"><button class="btn" id="dupBtn">Dupliquer</button><button class="btn" id="expBtn">Exporter (Excel QDV)</button><button class="btn" id="cpBtn">Copier pour Excel</button><button class="btn danger" id="delBtn">Supprimer</button></div></div>';
+  app.innerHTML=h;
+  // liaisons
+  const bind=(id,key,isNum)=>{const el=$('#'+id);el.addEventListener('input',()=>{o[key]=isNum?num(el.value):el.value;if(isNum&&el.value.trim()==='')o[key]=null;touch(o);refresh(o)})};
+  bind('f-code','code');bind('f-des','des');bind('f-r','r',true);bind('f-q','q',true);
+  $('#f-des').addEventListener('input',()=>$('#title').textContent=o.des||'Nouvel ouvrage');
+  $('#f-unite').addEventListener('change',e=>{o.unite=e.target.value;touch(o);renderEdit()});
+  $('#f-cible').addEventListener('input',e=>{o.cible=num(e.target.value);touch(o);renderCible(o)});
+  app.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>openAdd(o,b.dataset.add)));
+  bindLignes(o);
+  $('#dupBtn').addEventListener('click',()=>{const c=JSON.parse(JSON.stringify(o));c.id=uid();c.des=(o.des||'Ouvrage')+' (copie)';c.lignes.forEach(l=>l.id=uid());c.upd=Date.now();S.ouv.push(c);save();toast('Copie créée');setView('edit',c.id)});
+  $('#expBtn').addEventListener('click',()=>exportXLSX([o],(o.code||o.des||'Sous-detail')));
+  $('#cpBtn').addEventListener('click',()=>copyTSV(o));
+  armDelete($('#delBtn'),()=>{S.ouv=S.ouv.filter(x=>x.id!==o.id);save();toast('Ouvrage supprimé');setView('list')});
+  renderCible(o);
+}
+function refresh(o){const r=compute(o);$('#sumbar').innerHTML=sumHTML(o,r);$('#resCard').innerHTML=resHTML(o,r);const du=$('#f-duree');if(du)du.textContent=r.duree?fx(r.duree,2)+' j':'—';
+  // totaux de blocs et lignes recalculés sans perdre le focus
+  document.querySelectorAll('.bloc').forEach(sec=>{});
+  for(const d of r.det){const el=document.querySelector('[data-calc="'+d.l.id+'"]');if(el)el.innerHTML=calcText(o,d)}
+  document.querySelectorAll('.bloc').forEach((sec,i)=>{const b=['MO','MAT','FOUR','EVAC','ST'][i];const t=sec.querySelector('.tot');if(t)t.textContent=eur(r.blocs[b])+' / '+o.unite});
+  renderCible(o);
+}
+function sumHTML(o,r){
+  const tot=r.ds||0;const seg=['MO','MAT','FOUR','EVAC','ST'].map(b=>tot>0&&r.blocs[b]>0?'<span style="width:'+(r.blocs[b]/tot*100)+'%;background:var('+CATS[b].c+')" title="'+CATS[b].nom+'"></span>':'').join('');
+  return '<div class="card"><div class="kpi"><div class="lbl">Déboursé sec / '+esc(o.unite)+'</div><div class="val">'+eur(r.ds)+'</div></div><div class="kpi pv"><div class="lbl">Prix de vente HT / '+esc(o.unite)+'</div><div class="val">'+eur(r.pv)+'</div></div><div class="bar" aria-hidden="true">'+seg+'</div></div>';
+}
+function resHTML(o,r){
+  let h='<h3>Résultat</h3><div class="legend">'+['MO','MAT','FOUR','EVAC','ST'].filter(b=>r.blocs[b]).map(b=>'<span><i style="background:var('+CATS[b].c+')"></i>'+CATS[b].nom+' '+(r.ds?F0.format(r.blocs[b]/r.ds*100):0)+' %</span>').join('')+'</div>';
+  h+='<table class="res"><tbody>';
+  for(const b of ['MO','MAT','FOUR','EVAC','ST'])if(r.blocs[b])h+='<tr><td>'+CATS[b].nom+'</td><td>'+eur(r.blocs[b])+'</td></tr>';
+  h+='<tr><td><b>Déboursé sec unitaire</b></td><td><b>'+eur(r.ds)+'</b></td></tr>';
+  h+='<tr><td>Coefficient K'+(r.blocs.ST?' (hors sous-traitance)':'')+'</td><td>× '+F3.format(r.K)+'</td></tr>';
+  if(r.blocs.ST)h+='<tr><td>Coefficient sous-traitance</td><td>× '+F3.format(r.kST)+'</td></tr>';
+  h+='<tr><td>Prix calculé</td><td>'+(isFinite(r.pvRaw)?F3.format(r.pvRaw):'—')+' €</td></tr>';
+  h+='<tr class="big"><td>Prix de vente HT / '+esc(o.unite)+'</td><td>'+eur(r.pv)+'</td></tr></tbody></table>';
+  if(r.Q>0){h+='<table class="res"><tbody><tr><td>Quantité</td><td>'+fx(r.Q)+' '+esc(o.unite)+'</td></tr><tr><td>Déboursé sec total</td><td>'+eur(r.dsTot,0)+'</td></tr><tr><td>Vente totale HT</td><td>'+eur(r.pvTot,0)+'</td></tr><tr><td>Marge brute</td><td>'+eur(r.marge,0)+(r.pvTot?' ('+F2.format(r.marge/r.pvTot*100)+' %)':'')+'</td></tr></tbody></table>'}
+  if(r.warn.length)h+='<div class="alert warn">'+r.warn.map(esc).join('<br>')+'</div>';
+  if(S.settings.arrondi)h+='<p class="small muted" style="margin:0">Prix arrondi au centime supérieur, comme le cadre MEL.</p>';
+  return h;
+}
+function renderCible(o){
+  const el=$('#cibleOut');if(!el)return;const t=num(o.cible);
+  if(!(t>0)){el.innerHTML='';return}
+  const r=compute(o);const c=rendementCible(r,t);
+  if(c.err){el.innerHTML='<div class="alert bad">'+esc(c.err)+'</div>';return}
+  const R=c.R,cur=r.R;let lvl='';let msg='';
+  if(cur>0){const ratio=R/cur;if(ratio>2||ratio<0.5){lvl='bad';msg='Écart très fort avec ton rendement actuel ('+fx(cur)+'). Vérifie que ce rendement reste réaliste.'}else if(ratio>1.3||ratio<0.77){lvl='warn';msg='Écart de plus de 30 % avec ton rendement actuel ('+fx(cur)+').'}}
+  const Q=r.Q;
+  el.innerHTML='<table class="res"><tbody><tr><td>Rendement nécessaire</td><td><b>'+fx(R,2)+' '+esc(o.unite)+'/j</b></td></tr>'+(Q>0?'<tr><td>Durée correspondante</td><td>'+fx(Q/R,2)+' j</td></tr>':'')+'</tbody></table>'+(msg?'<div class="alert '+lvl+'">'+esc(msg)+'</div>':'')+'<div class="row"><button class="btn primary" id="applyR">Appliquer ce rendement</button></div>';
+  $('#applyR').addEventListener('click',()=>{o.r=Math.round(R*1e6)/1e6;touch(o);renderEdit();toast('Rendement appliqué')});
+}
+function calcText(o,d){
+  const u=esc(o.unite);
+  if(d.bloc==='MO'||d.bloc==='MAT'){const r=d.r;return d.isH?(fx(d.nb)+' × '+fx(d.hj)+' h × '+eur(r.pu)+' = <b>'+eur(d.parJour)+'/j</b> → <b>'+eur(d.u)+'/'+u+'</b>'):(fx(d.nb)+' × '+eur(r.pu)+'/j = <b>'+eur(d.parJour)+'/j</b> → <b>'+eur(d.u)+'/'+u+'</b>')}
+  if(d.bloc==='FOUR'||d.bloc==='ST'){const r=d.r;return fx(d.qu,4)+' '+esc(r.unite)+' × '+eur(d.punet)+(d.bloc==='FOUR'&&(r.remise||r.transport)?' (net)':'')+' = <b>'+eur(d.u)+'/'+u+'</b>'}
+  if(d.bloc==='EVAC'){return 'Camion '+fx(d.jcam,4)+' j × '+eur(d.cam.pu)+' = '+eur(d.uc)+'<br>Chauffeur '+fx(d.hch,4)+' h × '+eur(d.chf.pu)+' = '+eur(d.uh)+'<br>Décharge '+fx(d.tdech,4)+' t × '+eur(d.dch.pu)+' = '+eur(d.ud)+'<br>Total <b>'+eur(d.u)+'/'+u+'</b>'}
+  return '';
+}
+function ligneHTML(o,d){
+  const l=d.l;let h='<div class="ligne" data-lid="'+l.id+'">';
+  if(l.bloc==='EVAC'){
+    const opt=(cat,sel)=>'<option value="">— choisir —</option>'+S.lib.filter(x=>x.cat===cat).map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+esc(x.nom)+' ('+esc(x.unite)+')</option>').join('');
+    h+='<div class="top"><div class="nom">Évacuation des déblais</div><button class="btn sm ghost danger" data-del="'+l.id+'" aria-label="Supprimer la ligne">✕</button></div>'+
+      '<div class="grid2"><div class="field"><label for="tu-'+l.id+'">Tonnes par '+esc(o.unite)+'</label><input type="text" inputmode="decimal" class="numin" id="tu-'+l.id+'" data-k="tu" value="'+inval(l.tu)+'" placeholder="0,30"></div>'+
+      '<div class="field"><label for="tpj-'+l.id+'">Tonnes par camion et par jour</label><input type="text" inputmode="decimal" class="numin" id="tpj-'+l.id+'" data-k="tpj" value="'+inval(l.tpj)+'" placeholder="4 rotations × 15 t = 60"></div></div>'+
+      '<div class="row small"><button class="btn sm" data-vol="'+l.id+'">Calculer les tonnes (volume × densité)</button></div>'+
+      '<div class="grid3"><div class="field"><label for="cam-'+l.id+'">Camion (j)</label><select id="cam-'+l.id+'" data-k="camion">'+opt('MAT',l.camion)+'</select></div>'+
+      '<div class="field"><label for="chf-'+l.id+'">Chauffeur (h)</label><select id="chf-'+l.id+'" data-k="chauffeur">'+opt('MO',l.chauffeur)+'</select></div>'+
+      '<div class="field"><label for="dch-'+l.id+'">Décharge (t)</label><select id="dch-'+l.id+'" data-k="decharge">'+opt('FOUR',l.decharge)+'</select></div></div>';
+  }else{
+    const r=d.r; const lib=!!l.ref;
+    h+='<div class="top"><div class="nom">'+(lib?esc(r.nom):'<input type="text" data-k="nom" id="nom-'+l.id+'" value="'+esc(l.nom)+'" placeholder="Libellé" aria-label="Libellé">')+(r.broken?' <span class="pill bad">supprimé de la bibliothèque</span>':'')+(r.missing?' <span class="pill warn">prix à saisir</span>':'')+'</div><button class="btn sm ghost danger" data-del="'+l.id+'" aria-label="Supprimer la ligne">✕</button></div>';
+    if(l.bloc==='MO'||l.bloc==='MAT'){
+      h+='<div class="grid3"><div class="field"><label for="nb-'+l.id+'">Nombre</label><input type="text" inputmode="decimal" class="numin" id="nb-'+l.id+'" data-k="nb" value="'+inval(l.nb)+'"></div>';
+      if(d.isH)h+='<div class="field"><label for="hj-'+l.id+'">Heures / jour</label><input type="text" inputmode="decimal" class="numin" id="hj-'+l.id+'" data-k="hj" value="'+inval(l.hj)+'" placeholder="'+inval(S.settings.hj)+'"></div>';
+      if(!lib)h+='<div class="field"><label for="un-'+l.id+'">Unité</label><select id="un-'+l.id+'" data-k="unite" data-rerender="1"><option value="h"'+(l.unite==='h'?' selected':'')+'>heure</option><option value="j"'+(l.unite==='j'?' selected':'')+'>jour</option></select></div>';
+      h+='<div class="field"><label for="pu-'+l.id+'">'+(lib?'PU spécifique':'Prix unitaire')+' (€/'+esc(r.unite||'')+')</label><input type="text" inputmode="decimal" class="numin" id="pu-'+l.id+'" data-k="'+(lib?'puSpec':'pu')+'" value="'+inval(lib?l.puSpec:l.pu)+'" placeholder="'+(lib&&r.libPU!==null?inval(r.libPU):'')+'"></div></div>';
+    }else{
+      h+='<div class="grid3"><div class="field"><label for="ra-'+l.id+'">Qté par '+esc(o.unite)+(lib?' ('+esc(r.unite)+')':'')+'</label><input type="text" inputmode="decimal" class="numin" id="ra-'+l.id+'" data-k="ratio" value="'+inval(l.ratio)+'"></div>';
+      if(!lib)h+='<div class="field"><label for="un-'+l.id+'">Unité</label><input type="text" id="un-'+l.id+'" data-k="unite" value="'+esc(l.unite)+'" placeholder="t"></div>';
+      h+='<div class="field"><label for="pe-'+l.id+'">Pertes %</label><input type="text" inputmode="decimal" class="numin" id="pe-'+l.id+'" data-k="pertes" value="'+inval(l.pertes)+'" placeholder="0"></div>'+
+         '<div class="field"><label for="pu-'+l.id+'">'+(lib?'PU spécifique':'Prix unitaire')+'</label><input type="text" inputmode="decimal" class="numin" id="pu-'+l.id+'" data-k="'+(lib?'puSpec':'pu')+'" value="'+inval(lib?l.puSpec:l.pu)+'" placeholder="'+(lib&&r.libPU!==null?inval(r.libPU):'')+'"></div></div>';
+      if(l.bloc==='FOUR')h+='<div class="row small"><button class="btn sm" data-ep="'+l.id+'">Épaisseur × densité</button>'+(lib&&(r.remise||r.transport)?'<span class="muted">Remise '+fx(r.remise)+' % · transport '+eur(r.transport)+'/'+esc(r.unite)+'</span>':'')+'</div>';
+    }
+  }
+  h+='<div class="calc" data-calc="'+l.id+'">'+calcText(o,d)+'</div></div>';
+  return h;
+}
+function bindLignes(o){
+  const app=$('#app');
+  app.querySelectorAll('.ligne').forEach(row=>{
+    const l=o.lignes.find(x=>x.id===row.dataset.lid);if(!l)return;
+    row.querySelectorAll('[data-k]').forEach(el=>{
+      const k=el.dataset.k;const isNum=['nb','hj','pu','puSpec','ratio','pertes','tu','tpj'].includes(k);
+      const ev=el.tagName==='SELECT'?'change':'input';
+      el.addEventListener(ev,()=>{l[k]=isNum?(el.value.trim()===''?null:num(el.value)):el.value;touch(o);if(el.dataset.rerender||el.tagName==='SELECT'&&l.bloc!=='EVAC')renderEdit();else refresh(o)});
+    });
+    const del=row.querySelector('[data-del]');armDelete(del,()=>{o.lignes=o.lignes.filter(x=>x.id!==l.id);touch(o);renderEdit()},'Confirmer');
+    const ep=row.querySelector('[data-ep]');if(ep)ep.addEventListener('click',()=>openEpaisseur(o,l));
+    const vol=row.querySelector('[data-vol]');if(vol)vol.addEventListener('click',()=>openVolume(o,l));
+  });
+}
+function armDelete(btn,fn,label){if(!btn)return;const base=btn.innerHTML;btn.addEventListener('click',()=>{if(btn.classList.contains('armed')){fn();return}btn.classList.add('armed');btn.textContent=label||'Confirmer la suppression';clearTimeout(btn._t);btn._t=setTimeout(()=>{btn.classList.remove('armed');btn.innerHTML=base},3500)})}
+
+/* ----- feuilles (sélection, aides de calcul) ----- */
+function sheet(html,onMount){const host=$('#sheetHost');host.innerHTML='<div class="sheet" id="sheet"><div class="panel stack" role="dialog" aria-modal="true">'+html+'</div></div>';const sh=$('#sheet');sh.addEventListener('click',e=>{if(e.target===sh)closeSheet()});document.addEventListener('keydown',escClose);onMount&&onMount(sh)}
+function escClose(e){if(e.key==='Escape')closeSheet()}
+function closeSheet(){$('#sheetHost').innerHTML='';document.removeEventListener('keydown',escClose)}
+function openAdd(o,bloc){
+  if(bloc==='EVAC'){
+    const cam=S.lib.find(x=>x.cat==='MAT'&&/camion 8×4$/i.test(x.nom));const chf=S.lib.find(x=>x.cat==='MO'&&/chauffeur/i.test(x.nom));const dch=S.lib.find(x=>x.cat==='FOUR'&&/décharge/i.test(x.nom));
+    o.lignes.push({id:uid(),bloc:'EVAC',tu:null,tpj:null,hj:null,camion:cam?cam.id:'',chauffeur:chf?chf.id:'',decharge:dch?dch.id:''});touch(o);renderEdit();return}
+  const items=S.lib.filter(x=>x.cat===bloc);
+  let h='<div class="row"><h2 class="grow">Ajouter : '+CATS[bloc].nom+'</h2><button class="btn ghost" id="shClose">Fermer</button></div>'+
+    '<input type="search" id="shQ" placeholder="Filtrer" aria-label="Filtrer la bibliothèque"><div class="stack" id="shList"></div>'+
+    '<button class="btn" id="shFree">+ Ligne libre (hors bibliothèque)</button>';
+  sheet(h,()=>{
+    const draw=()=>{const q=($('#shQ').value||'').toLowerCase();$('#shList').innerHTML=items.filter(x=>x.nom.toLowerCase().includes(q)).map(x=>'<button class="btn" style="justify-content:space-between" data-pick="'+x.id+'"><span>'+esc(x.nom)+'</span><span class="mono small">'+(num(x.pu)===null?'prix à saisir':eur(num(x.pu))+'/'+esc(x.unite))+'</span></button>').join('')||'<p class="muted">Rien dans la bibliothèque pour ce bloc.</p>';
+      $('#shList').querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('click',()=>{addLine(o,bloc,b.dataset.pick);closeSheet()}))};
+    draw();$('#shQ').addEventListener('input',draw);$('#shClose').addEventListener('click',closeSheet);
+    $('#shFree').addEventListener('click',()=>{addLine(o,bloc,null);closeSheet()});
+  });
+}
+function addLine(o,bloc,ref){
+  const l={id:uid(),bloc,ref:ref||null};
+  if(bloc==='MO'||bloc==='MAT'){l.nb=1;l.hj=null;if(!ref){l.nom='';l.unite=bloc==='MO'?'h':'j';l.pu=null}}
+  else{l.ratio=null;l.pertes=null;if(!ref){l.nom='';l.unite=bloc==='ST'?'U':'t';l.pu=null}}
+  o.lignes.push(l);touch(o);renderEdit();
+  setTimeout(()=>{const f=document.getElementById((bloc==='MO'||bloc==='MAT'?'nb-':'ra-')+l.id);f&&f.focus()},30);
+}
+function openEpaisseur(o,l){
+  const r=lineRes(l);
+  sheet('<h2>Épaisseur × densité</h2><p class="small muted" style="margin:0">Quantité par '+esc(o.unite)+' = épaisseur (m) × densité. Exemple : 6 cm × 2,4 = 0,144 t/m².</p>'+
+    '<div class="grid2"><div class="field"><label for="ep-e">Épaisseur (cm)</label><input type="text" inputmode="decimal" class="numin" id="ep-e" placeholder="6"></div><div class="field"><label for="ep-d">Densité (t/m³)</label><input type="text" inputmode="decimal" class="numin" id="ep-d" placeholder="2,4"></div></div>'+
+    '<p class="small muted" style="margin:0">Pour un matériau au m³, mets la densité à 1.</p><div class="mono" id="ep-out">—</div><div class="row"><button class="btn primary" id="ep-ok">Reporter dans la ligne</button><button class="btn ghost" id="ep-x">Annuler</button></div>',()=>{
+      const upd=()=>{const e=num($('#ep-e').value),d=num($('#ep-d').value);const v=e!==null&&d!==null?e/100*d:null;$('#ep-out').textContent=v===null?'—':fx(v,4)+' '+(r.unite||'')+' par '+o.unite;return v};
+      $('#ep-e').addEventListener('input',upd);$('#ep-d').addEventListener('input',upd);$('#ep-x').addEventListener('click',closeSheet);
+      $('#ep-ok').addEventListener('click',()=>{const v=upd();if(v!==null){l.ratio=Math.round(v*1e6)/1e6;touch(o);closeSheet();renderEdit()}});
+      $('#ep-e').focus();
+    });
+}
+function openVolume(o,l){
+  sheet('<h2>Tonnes à évacuer</h2><p class="small muted" style="margin:0">Tonnes par '+esc(o.unite)+' = volume en place par '+esc(o.unite)+' × densité.</p>'+
+    '<div class="grid2"><div class="field"><label for="vo-v">Volume par '+esc(o.unite)+' (m³)</label><input type="text" inputmode="decimal" class="numin" id="vo-v" placeholder="'+(o.unite==='m²'?'0,30 pour 30 cm':'1')+'"></div><div class="field"><label for="vo-d">Densité (t/m³)</label><input type="text" inputmode="decimal" class="numin" id="vo-d" placeholder="1,8"></div></div>'+
+    '<div class="mono" id="vo-out">—</div><div class="row"><button class="btn primary" id="vo-ok">Reporter</button><button class="btn ghost" id="vo-x">Annuler</button></div>',()=>{
+      const upd=()=>{const v=num($('#vo-v').value),d=num($('#vo-d').value);const t=v!==null&&d!==null?v*d:null;$('#vo-out').textContent=t===null?'—':fx(t,4)+' t par '+o.unite;return t};
+      $('#vo-v').addEventListener('input',upd);$('#vo-d').addEventListener('input',upd);$('#vo-x').addEventListener('click',closeSheet);
+      $('#vo-ok').addEventListener('click',()=>{const t=upd();if(t!==null){l.tu=Math.round(t*1e6)/1e6;touch(o);closeSheet();renderEdit()}});
+      $('#vo-v').focus();
+    });
+}
+
+/* ----- bibliothèque ----- */
+function renderLib(){
+  $('#title').textContent='Bibliothèque';
+  const app=$('#app');const items=S.lib.filter(x=>x.cat===libCat);
+  const vides=S.lib.filter(x=>num(x.pu)===null).length;
+  let h='<div class="stack" style="padding-top:14px"><div class="seg" role="group" aria-label="Catégorie">'+['MO','MAT','FOUR','ST'].map(c=>'<button data-cat="'+c+'" aria-pressed="'+(c===libCat)+'">'+CATS[c].nom+' <span class="muted">'+S.lib.filter(x=>x.cat===c).length+'</span></button>').join('')+'</div>';
+  if(vides)h+='<div class="alert info">Aucun prix n’est fourni par défaut. '+vides+' ligne'+(vides>1?'s attendent':' attend')+' ton prix.</div>';
+  for(const x of items){
+    h+='<div class="card lib-item" data-id="'+x.id+'" role="button" tabindex="0"><div><div style="font-weight:600;overflow-wrap:anywhere">'+esc(x.nom)+'</div><div class="small muted">'+(x.famille?esc(x.famille)+' · ':'')+(x.cat==='FOUR'&&(num(x.remise)||num(x.transport))?'remise '+fx(num(x.remise)||0)+' % · transport '+eur(num(x.transport)||0):'')+'</div></div><div class="pu">'+(num(x.pu)===null?'<span class="pill warn">prix à saisir</span>':eur(num(x.pu))+'<span class="muted small"> / '+esc(x.unite)+'</span>')+'</div></div>';
+  }
+  h+='<button class="btn primary" id="libNew">+ Ajouter dans '+CATS[libCat].nom+'</button></div>';
+  app.innerHTML=h;
+  app.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{libCat=b.dataset.cat;renderLib()}));
+  app.querySelectorAll('.lib-item').forEach(el=>{const go=()=>editLib(el.dataset.id);el.addEventListener('click',go);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});
+  $('#libNew').addEventListener('click',()=>editLib(null));
+}
+function editLib(id){
+  const x=id?libGet(id):{id:uid(),cat:libCat,nom:'',unite:libCat==='MO'?'h':libCat==='MAT'?'j':libCat==='FOUR'?'t':'U',pu:null,remise:0,transport:0,famille:''};
+  const used=id?S.ouv.filter(o=>o.lignes.some(l=>l.ref===id||l.camion===id||l.chauffeur===id||l.decharge===id)).length:0;
+  const unitSel=(x.cat==='MO'||x.cat==='MAT')?'<select id="le-u"><option value="h"'+(x.unite==='h'?' selected':'')+'>heure</option><option value="j"'+(x.unite==='j'?' selected':'')+'>jour</option></select>':'<input type="text" id="le-u" list="unites" value="'+esc(x.unite)+'"><datalist id="unites">'+UNITES_MAT.map(u=>'<option value="'+u+'">').join('')+'</datalist>';
+  sheet('<div class="row"><h2 class="grow">'+(id?'Modifier':'Ajouter')+' · '+CATS[x.cat].nom+'</h2><button class="btn ghost" id="le-x">Fermer</button></div>'+
+    '<div class="field"><label for="le-n">Nom</label><input type="text" id="le-n" value="'+esc(x.nom)+'"></div>'+
+    '<div class="grid3"><div class="field"><label for="le-u">Unité</label>'+unitSel+'</div><div class="field"><label for="le-p">Prix (€)</label><input type="text" inputmode="decimal" class="numin" id="le-p" value="'+inval(x.pu)+'"></div><div class="field"><label for="le-f">Code famille QDV</label><input type="text" id="le-f" value="'+esc(x.famille)+'" placeholder="EB05"></div></div>'+
+    (x.cat==='FOUR'?'<div class="grid2"><div class="field"><label for="le-r">Remise / ristourne %</label><input type="text" inputmode="decimal" class="numin" id="le-r" value="'+inval(x.remise)+'" placeholder="0"></div><div class="field"><label for="le-t">Transport (€ par unité)</label><input type="text" inputmode="decimal" class="numin" id="le-t" value="'+inval(x.transport)+'" placeholder="0 si prix rendu"></div></div><p class="small muted" style="margin:0">Prix net = prix × (1 − remise) + transport.</p>':'')+
+    (used?'<p class="small muted" style="margin:0">Utilisé dans '+used+' ouvrage'+(used>1?'s':'')+' : la modification s’y applique.</p>':'')+
+    '<div class="row"><button class="btn primary" id="le-ok">Enregistrer</button>'+(id?'<button class="btn danger" id="le-d">Supprimer</button>':'')+'</div>',()=>{
+      $('#le-x').addEventListener('click',closeSheet);$('#le-n').focus();
+      $('#le-ok').addEventListener('click',()=>{const n=$('#le-n').value.trim();if(!n){$('#le-n').focus();toast('Donne un nom');return}
+        x.nom=n;x.unite=$('#le-u').value.trim()||x.unite;x.pu=num($('#le-p').value);x.famille=$('#le-f').value.trim();
+        if(x.cat==='FOUR'){x.remise=num($('#le-r').value)||0;x.transport=num($('#le-t').value)||0}
+        if(!id)S.lib.push(x);save();closeSheet();renderLib();toast('Enregistré')});
+      armDelete($('#le-d'),()=>{S.lib=S.lib.filter(y=>y.id!==x.id);save();closeSheet();renderLib();toast(used?'Supprimé : '+used+' ouvrage(s) à revoir':'Supprimé')});
+    });
+}
+
+/* ----- réglages ----- */
+function renderSet(){
+  $('#title').textContent='Réglages';
+  const s=S.settings;const K=coefK();
+  const pf=(id,lbl,v)=>'<div class="field"><label for="'+id+'">'+lbl+'</label><input type="text" inputmode="decimal" class="numin" id="'+id+'" value="'+inval(v)+'"></div>';
+  let h='<div class="stack" style="padding-top:14px">';
+  h+='<div class="card stack"><h3>Coefficient de vente</h3><div class="seg" role="group" aria-label="Mode du coefficient"><button data-km="construit" aria-pressed="'+(s.kMode==='construit')+'">Construit (%)</button><button data-km="direct" aria-pressed="'+(s.kMode==='direct')+'">K direct</button></div>';
+  if(s.kMode==='direct')h+='<div class="grid2">'+pf('s-kd','K',s.kDirect)+'</div>';
+  else h+='<p class="small muted" style="margin:0">Frais généraux = 1 + somme des % · K = frais généraux × (1 + bénéfice et aléas). Valeurs de départ reprises de ton cadre de sous-détail 26EV14 : à vérifier.</p><div class="grid3">'+pf('s-enc','Encadrement %',s.pct.enc)+pf('s-sec','Sécurité %',s.pct.sec)+pf('s-mag','Magasin %',s.pct.mag)+pf('s-sie','Siège %',s.pct.siege)+pf('s-etu','Études %',s.pct.etu)+pf('s-ba','Bénéfice et aléas %',s.ba)+'</div>';
+  h+='<div class="grid2">'+pf('s-kst','Coefficient sous-traitance',s.kST)+pf('s-hj','Heures par jour',s.hj)+'</div>';
+  h+='<div class="row"><span class="muted">K appliqué</span><span class="mono" id="kOut" style="font-size:1.2rem;font-weight:500">'+F3.format(K)+'</span></div>';
+  h+='<label class="row" style="gap:8px"><input type="checkbox" id="s-arr"'+(s.arrondi?' checked':'')+'> Arrondir le prix de vente au centime supérieur</label></div>';
+  h+='<div class="card stack"><h3>Sauvegarde</h3><p class="small" style="margin:0">Tout est enregistré dans ce navigateur, sur ce téléphone. Si tu vides les données de Safari ou changes de téléphone, tout est perdu. Fais une sauvegarde régulière.</p>'+
+    '<div class="row"><button class="btn primary" id="bkJson">Télécharger la sauvegarde</button><button class="btn" id="bkXlsx">Exporter les ouvrages (Excel QDV)</button></div>'+
+    '<div class="field"><label for="bkIn">Restaurer une sauvegarde (.json)</label><input type="file" id="bkIn" accept=".json,application/json"></div><div id="bkMsg"></div>'+
+    '<div class="row"><button class="btn" id="bkCopy">Copier la sauvegarde</button></div></div>';
+  h+='<div class="card stack"><h3>Tout effacer</h3><p class="small muted" style="margin:0">Supprime ouvrages, bibliothèque et réglages de ce navigateur.</p><div class="row"><button class="btn danger" id="wipe">Tout effacer</button></div></div>';
+  h+='<p class="small muted">'+S.ouv.length+' ouvrage(s) · '+S.lib.length+' ressource(s) en bibliothèque · K = '+F3.format(K)+'</p></div>';
+  $('#app').innerHTML=h;
+  document.querySelectorAll('[data-km]').forEach(b=>b.addEventListener('click',()=>{s.kMode=b.dataset.km;save();renderSet()}));
+  const bind=(id,set)=>{const el=$('#'+id);if(el)el.addEventListener('input',()=>{set(num(el.value));save();$('#kOut').textContent=F3.format(coefK())})};
+  bind('s-kd',v=>s.kDirect=v);bind('s-enc',v=>s.pct.enc=v);bind('s-sec',v=>s.pct.sec=v);bind('s-mag',v=>s.pct.mag=v);bind('s-sie',v=>s.pct.siege=v);bind('s-etu',v=>s.pct.etu=v);bind('s-ba',v=>s.ba=v);bind('s-kst',v=>s.kST=v);bind('s-hj',v=>s.hj=v??8);
+  $('#s-arr').addEventListener('change',e=>{s.arrondi=e.target.checked;save()});
+  $('#bkJson').addEventListener('click',()=>saveFile('Sauvegarde calculette '+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S,null,1)));
+  $('#bkXlsx').addEventListener('click',()=>S.ouv.length?exportXLSX(S.ouv,'Sous-details QDV'):toast('Aucun ouvrage à exporter'));
+  $('#bkCopy').addEventListener('click',()=>copyText(JSON.stringify(S),'Sauvegarde copiée'));
+  $('#bkIn').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);if(!(d&&d.v===1&&d.settings&&Array.isArray(d.lib)&&Array.isArray(d.ouv)))throw 0;
+      $('#bkMsg').innerHTML='<div class="alert warn">Ce fichier contient '+d.ouv.length+' ouvrage(s) et '+d.lib.length+' ressource(s). Il remplacera tout ce qui est dans la calculette.</div><div class="row"><button class="btn primary" id="bkGo">Remplacer par cette sauvegarde</button></div>';
+      $('#bkGo').addEventListener('click',()=>{S=d;save();toast('Sauvegarde restaurée');renderSet()});
+    }catch(_){$('#bkMsg').innerHTML='<div class="alert bad">Ce fichier n’est pas une sauvegarde de la calculette.</div>'}};rd.readAsText(f)});
+  armDelete($('#wipe'),()=>{S=defaults();save();toast('Tout est effacé');setView('list')},'Confirmer : tout effacer');
+}
+
+/* ---------- export ---------- */
+function saveFile(name,data){
+  try{
+    const blob=data instanceof Blob?data:new Blob([data],{type:name.endsWith('.json')?'application/json':'application/octet-stream'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},4000);toast('Fichier prêt : '+name);
+  }catch(e){toast('Téléchargement impossible sur ce navigateur')}
+}
+function qdvRows(o){
+  const r=compute(o);const Q=r.Q>0?r.Q:1;const dur=r.R>0?Q/r.R:Q;const rows=[];
+  rows.push(['',o.code||'','',o.des||'',o.unite,'',r.Q>0?r.Q:'','','','','','','']);
+  rows.push([1,'','Ouv.',o.des||'',o.unite,'[QEval]',+dur.toFixed(4),Q,r.R>0?r.R:'','','','','']);
+  let n=2;
+  for(const d of r.det){
+    if(d.bloc==='MO'||d.bloc==='MAT'){const qt=d.qteJour*dur;rows.push([n++,'','Art.',d.r.nom,(d.r.unite||'').toUpperCase(),d.qteJour,+qt.toFixed(4),'','',d.r.pu??'',+(qt*(d.r.pu||0)/Q).toFixed(4),+(qt*(d.r.pu||0)).toFixed(2),d.r.famille||CATS[d.bloc].nom])}
+    else if(d.bloc==='FOUR'||d.bloc==='ST'){const qt=d.qu*Q;rows.push([n++,'','Art.',d.r.nom+(d.bloc==='ST'?' (ST)':''),d.r.unite,'[Ratio]*'+String(+d.qu.toFixed(6)),+qt.toFixed(4),'','',+d.punet.toFixed(4),+(d.u).toFixed(4),+(d.u*Q).toFixed(2),d.r.famille||CATS[d.bloc].nom])}
+    else if(d.bloc==='EVAC'){
+      const camJ=d.jcam*Q,hch=d.hch*Q,t=d.tdech*Q;
+      rows.push([n++,'','Art.',d.cam.nom,'J','[Ratio]*'+(+d.tu.toFixed(6))+'/'+(+d.tpj.toFixed(4)),+camJ.toFixed(4),'','',d.cam.pu??'',+d.uc.toFixed(4),+(d.uc*Q).toFixed(2),d.cam.famille||'Évacuation']);
+      rows.push([n++,'','Art.',d.chf.nom,'H','[Ratio]*'+(+d.tu.toFixed(6))+'/'+(+d.tpj.toFixed(4))+'*'+d.hj,+hch.toFixed(4),'','',d.chf.pu??'',+d.uh.toFixed(4),+(d.uh*Q).toFixed(2),d.chf.famille||'Évacuation']);
+      rows.push([n++,'','Art.',d.dch.nom,'T','[Ratio]*'+(+d.tu.toFixed(6)),+t.toFixed(4),'','',d.dch.pu??'',+d.ud.toFixed(4),+(d.ud*Q).toFixed(2),d.dch.famille||'Évacuation']);
+    }
+  }
+  rows.push(['','','','Totaux pour le poste :','','','','','','',+r.ds.toFixed(4),+(r.ds*Q).toFixed(2),'']);
+  rows.push(['','','','Coefficient K','','','','','','',+r.K.toFixed(4),'','']);
+  rows.push(['','','','Prix de vente HT','','','','','','',r.pv,+(r.pv*Q).toFixed(2),'']);
+  rows.push([]);
+  return rows;
+}
+const QDV_HEAD=['N°','Code','Type','Désignation','UO','Formule','Quantité déboursé','Quantité ouvrage','Rendement (UO/j)','PU','Déboursé unitaire','Déboursé total','Famille'];
+function exportXLSX(list,base){
+  if(!window.XLSX){toast('Export Excel indisponible (bibliothèque non chargée)');return}
+  const rows=[QDV_HEAD];list.forEach(o=>rows.push(...qdvRows(o)));
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[6,22,6,48,6,24,14,12,12,10,14,14,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Détail QDV');
+  const rec=[['Code','Désignation','UO','Quantité','Rendement (UO/j)',"Main-d'œuvre",'Matériel','Matériaux','Évacuation','Sous-traitance','Déboursé sec','K','Prix de vente HT','Total vente HT']];
+  list.forEach(o=>{const r=compute(o);const b=r.blocs;const f=v=>+v.toFixed(4);rec.push([o.code,o.des,o.unite,r.Q||'',r.R||'',f(b.MO),f(b.MAT),f(b.FOUR),f(b.EVAC),f(b.ST),f(r.ds),+r.K.toFixed(4),r.pv,r.Q>0?+(r.pv*r.Q).toFixed(2):''])});
+  const ws2=XLSX.utils.aoa_to_sheet(rec);ws2['!cols']=[22,48,6,10,12,12,12,12,12,12,12,8,12,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws2,'Récap');
+  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  const name=String(base).replace(/[\\/:*?"<>|]/g,'-').slice(0,80)+'.xlsx';
+  saveFile(name,new Blob([buf]));
+}
+function copyText(t,ok){try{navigator.clipboard.writeText(t).then(()=>toast(ok),()=>fallbackCopy(t,ok))}catch(e){fallbackCopy(t,ok)}}
+function fallbackCopy(t,ok){sheet('<h2>Copie manuelle</h2><p class="small muted" style="margin:0">Sélectionne le texte puis copie-le.</p><textarea id="cpT" style="width:100%;height:220px;font-family:var(--f-mono);font-size:.8rem;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--fg)">'+esc(t)+'</textarea><button class="btn" id="cpX">Fermer</button>',()=>{const ta=$('#cpT');ta.focus();ta.select();$('#cpX').addEventListener('click',closeSheet)})}
+function copyTSV(o){const rows=[QDV_HEAD,...qdvRows(o)];copyText(rows.map(r=>r.map(c=>typeof c==='number'?String(c).replace('.',','):String(c??'')).join('\t')).join('\n'),'Copié : colle dans Excel')}
+
+render();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+})();
+</script>
+
+</body>
+</html>

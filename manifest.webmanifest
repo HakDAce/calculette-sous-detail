@@ -1,0 +1,16 @@
+{
+  "name": "Calculette sous-détail VRD",
+  "short_name": "Sous-détail",
+  "description": "Sous-détail de prix VRD : déboursé sec, coefficient, prix de vente, valeur cible et export QDV.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f3",
+  "theme_color": "#f2b705",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
