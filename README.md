@@ -10,6 +10,7 @@ déboursé sec par blocs, coefficient de vente, prix de vente, valeur cible et e
 - **Coefficient** : K direct, ou construit (encadrement, sécurité, magasin, siège, études, bénéfice et aléas) ; coefficient séparé pour la sous-traitance.
 - **Prix de vente** arrondi au centime supérieur (option), total, marge.
 - **Valeur cible** : tu fixes le prix de vente, l'application calcule le rendement nécessaire et alerte si l'écart est trop fort.
+- **Devis** : regroupe des ouvrages avec leurs quantités (et des titres de chapitre) pour obtenir le prix total : total HT, TVA, TTC, déboursé sec, marge et durée estimée. Les prix suivent les sous-détails en direct. Export Excel en 3 onglets (Devis, Analyse interne, Détail QDV).
 - **Bibliothèque** de ressources, sans aucun prix par défaut.
 - **Export Excel au format détail QDV** (onglets « Détail QDV » et « Récap »), copie pour Excel, sauvegarde et restauration (.json).
 
@@ -39,7 +40,7 @@ Attention : l'application installée sur l'écran d'accueil et Safari n'ont **pa
 
 ## Mettre à jour l'application
 
-Remplace `index.html` dans le dépôt, puis change `VERSION` dans `sw.js` (par exemple `v2`).
+Remplace `index.html` dans le dépôt, puis change `VERSION` dans `sw.js` (par exemple `sdp-v3`).
 Tes données ne sont pas touchées par une mise à jour.
 
 ## Fichiers
@@ -50,6 +51,7 @@ Tes données ne sont pas touchées par une mise à jour.
 | `manifest.webmanifest` | nom, couleurs et icônes pour l'écran d'accueil |
 | `sw.js` | cache hors connexion |
 | `icons/` | icônes de l'application |
+| `vendor/` | bibliothèque d'export Excel (SheetJS) et sa licence |
 | `.nojekyll` | sert les fichiers tels quels sur GitHub Pages |
 
 ## Limites
