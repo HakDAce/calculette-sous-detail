@@ -713,7 +713,7 @@ function editLib(id){
 
 /* ----- import / modèle Excel de la bibliothèque ----- */
 const CAT_LBL={MO:"Main-d'œuvre",MAT:'Matériel',FOUR:'Matériaux',ST:'Sous-traitance'};
-const normTxt=v=>String(v??'').toLowerCase().replace(/œ/g,'oe').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const normTxt=v=>String(v??'').toLowerCase().replace(/œ/g,'oe').replace(/</g,' inf ').replace(/>/g,' sup ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function catOf(v){const t=normTxt(v);if(!t)return null;
   if(/^(mo|main d oeuvre|main oeuvre|personnel)/.test(t))return 'MO';
   if(/^(mat|materiel|engin)/.test(t)&&!/^materiau/.test(t))return 'MAT';
