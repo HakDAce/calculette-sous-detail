@@ -11,7 +11,7 @@ déboursé sec par blocs, coefficient de vente, prix de vente, valeur cible et e
 - **Prix de vente** arrondi au centime supérieur (option), total, marge.
 - **Valeur cible** : tu fixes le prix de vente, l'application calcule le rendement nécessaire et alerte si l'écart est trop fort.
 - **Devis** : regroupe des ouvrages avec leurs quantités (et des titres de chapitre) pour obtenir le prix total : total HT, TVA, TTC, déboursé sec, marge et durée estimée. Les prix suivent les sous-détails en direct. Export Excel en 3 onglets (Devis, Analyse interne, Détail QDV).
-- **Bibliothèque** de ressources, sans aucun prix par défaut.
+- **Bibliothèque** de ressources, sans aucun prix par défaut. **Import Excel** : télécharge le modèle (ta bibliothèque actuelle), saisis les prix, réimporte ; aperçu des changements avant application, rien n'est effacé.
 - **Export Excel au format détail QDV** (onglets « Détail QDV » et « Récap »), copie pour Excel, sauvegarde et restauration (.json).
 
 ## Où sont les données

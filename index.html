@@ -681,8 +681,13 @@ function renderLib(){
   for(const x of items){
     h+='<div class="card lib-item" data-id="'+x.id+'" role="button" tabindex="0"><div><div style="font-weight:600;overflow-wrap:anywhere">'+esc(x.nom)+'</div><div class="small muted">'+(x.famille?esc(x.famille)+' · ':'')+(x.cat==='FOUR'&&(num(x.remise)||num(x.transport))?'remise '+fx(num(x.remise)||0)+' % · transport '+eur(num(x.transport)||0):'')+'</div></div><div class="pu">'+(num(x.pu)===null?'<span class="pill warn">prix à saisir</span>':eur(num(x.pu))+'<span class="muted small"> / '+esc(x.unite)+'</span>')+'</div></div>';
   }
-  h+='<button class="btn primary" id="libNew">+ Ajouter dans '+CATS[libCat].nom+'</button></div>';
+  h+='<button class="btn primary" id="libNew">+ Ajouter dans '+CATS[libCat].nom+'</button>';
+  h+='<div class="card stack"><h3>Prix depuis Excel</h3><p class="small" style="margin:0">1. Télécharge le modèle : il contient toute ta bibliothèque. 2. Mets tes prix dans Excel (tu peux ajouter des lignes). 3. Importe le fichier : tu vois les changements avant de les appliquer. Rien n’est effacé.</p>'+
+     '<div class="row"><button class="btn" id="libTpl">Télécharger le modèle Excel</button></div>'+
+     '<div class="field"><label for="libIn">Importer un fichier Excel ou CSV</label><input type="file" id="libIn" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"></div></div></div>';
   app.innerHTML=h;
+  $('#libTpl').addEventListener('click',libTemplate);
+  $('#libIn').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)importLibFile(f)});
   app.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{libCat=b.dataset.cat;renderLib()}));
   app.querySelectorAll('.lib-item').forEach(el=>{const go=()=>editLib(el.dataset.id);el.addEventListener('click',go);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});
   $('#libNew').addEventListener('click',()=>editLib(null));
@@ -704,6 +709,82 @@ function editLib(id){
         if(!id)S.lib.push(x);save();closeSheet();renderLib();toast('Enregistré')});
       armDelete($('#le-d'),()=>{S.lib=S.lib.filter(y=>y.id!==x.id);save();closeSheet();renderLib();toast(used?'Supprimé : '+used+' ouvrage(s) à revoir':'Supprimé')});
     });
+}
+
+/* ----- import / modèle Excel de la bibliothèque ----- */
+const CAT_LBL={MO:"Main-d'œuvre",MAT:'Matériel',FOUR:'Matériaux',ST:'Sous-traitance'};
+const normTxt=v=>String(v??'').toLowerCase().replace(/œ/g,'oe').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+function catOf(v){const t=normTxt(v);if(!t)return null;
+  if(/^(mo|main d oeuvre|main oeuvre|personnel)/.test(t))return 'MO';
+  if(/^(mat|materiel|engin)/.test(t)&&!/^materiau/.test(t))return 'MAT';
+  if(/^(four|fourniture|materiau|materiaux)/.test(t))return 'FOUR';
+  if(/^(st|sous traitance|soustraitance)/.test(t))return 'ST';
+  return null}
+function cellNum(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return isFinite(v)?v:null;const t=String(v).replace(/[\s  €%]/g,'').replace(',','.');if(t==='')return null;const n=Number(t);return isFinite(n)?n:NaN}
+function libTemplate(){
+  if(!window.XLSX){toast('Export Excel indisponible (bibliothèque non chargée)');return}
+  const order={MO:0,MAT:1,FOUR:2,ST:3};
+  const rows=[['Catégorie','Nom','Unité','Prix (€)','Remise %','Transport (€/unité)','Code famille']];
+  S.lib.slice().sort((a,b)=>order[a.cat]-order[b.cat]||a.nom.localeCompare(b.nom,'fr')).forEach(x=>rows.push([CAT_LBL[x.cat],x.nom,x.unite,num(x.pu)??'',x.cat==='FOUR'?(num(x.remise)||''):'',x.cat==='FOUR'?(num(x.transport)||''):'',x.famille||'']));
+  const help=[['Mode d’emploi'],[''],['1. Complète ou corrige la colonne « Prix (€) ». Tu peux ajouter des lignes en bas.'],['2. Garde les titres de colonnes de la ligne 1. L’ordre des colonnes n’a pas d’importance.'],['3. Dans la calculette : Bibliothèque → Importer un fichier Excel.'],[''],['Catégorie : Main-d\'œuvre, Matériel, Matériaux ou Sous-traitance (MO, MAT, FOUR, ST acceptés).'],['Unité : h ou j pour la main-d\'œuvre et le matériel ; t, m³, m², ml, U, kg… pour les matériaux.'],['Prix : € HT par unité. Laisse vide pour ne pas toucher au prix existant.'],['Remise % et Transport : matériaux uniquement. Prix net = prix × (1 − remise) + transport.'],['Une ligne est reconnue par sa catégorie et son nom : même nom = mise à jour, nouveau nom = ajout.'],['L’import n’efface jamais rien.']];
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[16,40,8,11,10,18,14].map(w=>({wch:w}));
+  for(let r=1;r<rows.length;r++){const a=XLSX.utils.encode_cell({r,c:3});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='#,##0.00'}
+  XLSX.utils.book_append_sheet(wb,ws,'Bibliothèque');
+  const wh=XLSX.utils.aoa_to_sheet(help);wh['!cols']=[{wch:100}];XLSX.utils.book_append_sheet(wb,wh,'Mode d’emploi');
+  saveFile('Bibliotheque prix '+new Date().toISOString().slice(0,10)+'.xlsx',new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]));
+}
+function importLibFile(f){
+  if(!window.XLSX){toast('Import indisponible (bibliothèque Excel non chargée)');return}
+  const rd=new FileReader();
+  rd.onload=()=>{let rows;
+    try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});const name=wb.SheetNames.find(n=>/biblio/i.test(n))||wb.SheetNames[0];rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:true})}
+    catch(e){sheet('<h2>Fichier illisible</h2><p class="small" style="margin:0">Ce fichier n’a pas pu être lu. Utilise un fichier .xlsx ou .csv, de préférence à partir du modèle.</p><button class="btn" id="imX">Fermer</button>',()=>$('#imX').addEventListener('click',closeSheet));return}
+    previewImport(rows)};
+  rd.readAsArrayBuffer(f);
+}
+function previewImport(rows){
+  // repère la ligne de titres et les colonnes, quel que soit leur ordre
+  const want={cat:/^(categorie|bloc|type)/,nom:/^(nom|designation|libelle|ressource|article)/,unite:/^(unite|uo|u)$/,pu:/^(prix|pu|tarif|cout)/,remise:/^(remise|ristourne)/,transport:/^(transport|port)/,famille:/^(code famille|famille|code)/};
+  let hi=-1,col={};
+  for(let i=0;i<Math.min(rows.length,10)&&hi<0;i++){const c={};rows[i].forEach((v,j)=>{const t=normTxt(v);for(const k in want)if(c[k]===undefined&&want[k].test(t)){c[k]=j;break}});if(c.nom!==undefined&&c.pu!==undefined){hi=i;col=c}}
+  if(hi<0){sheet('<h2>Colonnes introuvables</h2><p class="small" style="margin:0">Je n’ai pas trouvé les colonnes « Nom » et « Prix ». Pars du modèle (bouton « Télécharger le modèle Excel ») et garde la ligne de titres.</p><button class="btn" id="imX">Fermer</button>',()=>$('#imX').addEventListener('click',closeSheet));return}
+  const get=(r,k)=>col[k]===undefined?'':r[col[k]];
+  const upd=[],add=[],skip=[],seen=new Set();
+  rows.slice(hi+1).forEach((r,i)=>{const line=hi+i+2;
+    const nom=String(get(r,'nom')??'').trim();if(!nom){if(r.some(v=>String(v).trim()))skip.push('Ligne '+line+' : pas de nom');return}
+    const unite=String(get(r,'unite')??'').trim();
+    let cat=catOf(get(r,'cat')),guess=false;
+    if(!cat){const ex=S.lib.filter(x=>normTxt(x.nom)===normTxt(nom));if(ex.length===1)cat=ex[0].cat;else{guess=true;cat=/^h$/i.test(unite)?'MO':/^j$/i.test(unite)?'MAT':'FOUR'}}
+    const pu=cellNum(get(r,'pu')),rem=cellNum(get(r,'remise')),tr=cellNum(get(r,'transport')),fam=String(get(r,'famille')??'').trim();
+    if(Number.isNaN(pu)||(pu!==null&&pu<0)){skip.push('Ligne '+line+' ('+nom+') : prix illisible « '+get(r,'pu')+' »');return}
+    if((cat==='MO'||cat==='MAT')&&unite&&!/^[hj]$/i.test(unite)){skip.push('Ligne '+line+' ('+nom+') : unité « '+unite+' » impossible pour '+CAT_LBL[cat]+' (h ou j)');return}
+    const key=cat+'|'+normTxt(nom);if(seen.has(key)){skip.push('Ligne '+line+' ('+nom+') : en double dans le fichier');return}seen.add(key);
+    const x=S.lib.find(y=>y.cat===cat&&normTxt(y.nom)===normTxt(nom));
+    const ch={};
+    if(pu!==null)ch.pu=pu;
+    if(unite)ch.unite=(cat==='MO'||cat==='MAT')?unite.toLowerCase():unite;
+    if(cat==='FOUR'){if(rem!==null&&!Number.isNaN(rem))ch.remise=rem;if(tr!==null&&!Number.isNaN(tr))ch.transport=tr}
+    if(fam)ch.famille=fam;
+    if(x){const diff=Object.keys(ch).filter(k=>String(num(x[k])??x[k]??'')!==String(ch[k]));if(diff.length)upd.push({x,ch,diff})}
+    else add.push({cat,nom,ch,guess});
+  });
+  const used=id=>S.ouv.filter(o=>o.lignes.some(l=>l.ref===id||l.camion===id||l.chauffeur===id||l.decharge===id)).length;
+  const fmtV=(k,v)=>k==='pu'||k==='transport'?(v===null||v===undefined||v===''?'—':eur(num(v))):k==='remise'?fx(num(v)||0)+' %':esc(v||'—');
+  const KL={pu:'prix',unite:'unité',remise:'remise',transport:'transport',famille:'famille'};
+  let h='<div class="row"><h2 class="grow">Vérifier l’import</h2><button class="btn ghost" id="imX">Annuler</button></div>';
+  if(!upd.length&&!add.length){h+='<div class="alert info">Rien à changer : ta bibliothèque est déjà à jour.</div>'}
+  if(upd.length){h+='<h3>'+upd.length+' mise'+(upd.length>1?'s':'')+' à jour</h3><table class="res"><tbody>'+upd.map(u=>{const n=used(u.x.id);return '<tr><td>'+esc(u.x.nom)+'<br><span class="small muted">'+CAT_LBL[u.x.cat]+(n?' · utilisé dans '+n+' ouvrage'+(n>1?'s':''):'')+'</span></td><td>'+u.diff.map(k=>'<span class="small muted">'+KL[k]+'</span> '+fmtV(k,u.x[k])+' → <b>'+fmtV(k,u.ch[k])+'</b>').join('<br>')+'</td></tr>'}).join('')+'</tbody></table>'}
+  if(add.length){h+='<h3>'+add.length+' nouvelle'+(add.length>1?'s':'')+' ligne'+(add.length>1?'s':'')+'</h3><table class="res"><tbody>'+add.map(a=>'<tr><td>'+esc(a.nom)+'<br><span class="small muted">'+CAT_LBL[a.cat]+(a.guess?' <span class="pill warn">catégorie devinée</span>':'')+'</span></td><td>'+(a.ch.pu!==undefined?eur(a.ch.pu):'<span class="pill warn">prix à saisir</span>')+(a.ch.unite?' / '+esc(a.ch.unite):'')+'</td></tr>').join('')+'</tbody></table>'}
+  if(skip.length)h+='<div class="alert warn"><b>'+skip.length+' ligne'+(skip.length>1?'s ignorées':' ignorée')+'</b><br>'+skip.slice(0,12).map(esc).join('<br>')+(skip.length>12?'<br>…':'')+'</div>';
+  const affected=new Set(upd.flatMap(u=>S.ouv.filter(o=>o.lignes.some(l=>l.ref===u.x.id||l.camion===u.x.id||l.chauffeur===u.x.id||l.decharge===u.x.id)).map(o=>o.id))).size;
+  if(affected)h+='<p class="small muted" style="margin:0">'+affected+' ouvrage'+(affected>1?'s':'')+' et les devis qui les utilisent seront recalculés.</p>';
+  if(upd.length||add.length)h+='<div class="row"><button class="btn primary" id="imGo">Appliquer ('+(upd.length+add.length)+')</button></div>';
+  sheet(h,()=>{$('#imX').addEventListener('click',closeSheet);
+    const go=$('#imGo');if(go)go.addEventListener('click',()=>{
+      upd.forEach(u=>Object.assign(u.x,u.ch));
+      add.forEach(a=>S.lib.push({id:uid(),cat:a.cat,nom:a.nom,unite:a.ch.unite||({MO:'h',MAT:'j',FOUR:'t',ST:'U'})[a.cat],pu:a.ch.pu??null,remise:a.ch.remise||0,transport:a.ch.transport||0,famille:a.ch.famille||''}));
+      save();closeSheet();renderLib();toast((upd.length?upd.length+' mis à jour':'')+(upd.length&&add.length?' · ':'')+(add.length?add.length+' ajouté'+(add.length>1?'s':''):''))});
+  });
 }
 
 /* ----- réglages ----- */
