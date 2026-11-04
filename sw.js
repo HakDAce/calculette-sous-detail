@@ -1,6 +1,6 @@
 // Cache hors connexion : l'appli fonctionne sans réseau après la première ouverture.
 // Change VERSION à chaque mise à jour du site pour forcer le rechargement.
-const VERSION = 'sdp-v4';
+const VERSION = 'sdp-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './vendor/xlsx.full.min.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

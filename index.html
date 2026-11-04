@@ -155,6 +155,9 @@ table.res tr.big td{font-family:var(--f-display);font-size:1.15rem;font-weight:7
 .qres{font-family:var(--f-mono);font-size:.82rem;color:var(--muted)}
 .fxb{font-family:var(--f-mono);font-style:italic;min-width:34px;padding-inline:6px}
 .fxb[aria-pressed=true]{background:var(--accent-soft)}
+.linkb{background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit;font-weight:600}
+.linkb:hover{text-decoration:underline}
+.addrow{display:flex;flex-wrap:wrap;gap:6px}
 .fc-line{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:6px;align-items:center}
 details.rsd summary{cursor:pointer;font-weight:600;padding-block:6px}
 table.rs td:nth-child(2){text-align:right;font-family:var(--f-mono);white-space:nowrap;padding-inline:8px}
@@ -220,6 +223,8 @@ let storageOK=true;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOK=true}catch(e){storageOK=false}}
 S=load();
 if(!Array.isArray(S.devis))S.devis=[];
+S.devis.forEach(d=>{d.lignes=(d.lignes||[]).map(l=>{if(l.type!=='ouv')return l;const o=S.ouv.find(x=>x.id===l.ouvId);
+  return {id:l.id,type:'poste',code:o?o.code:'',des:o?o.des:'Ouvrage supprimé',unite:o?o.unite:'U',q:l.q,qf:l.qf,r:null,lignes:[],items:[{id:uid(),ouvId:l.ouvId,ratio:1}]}})});
 S.ouv=S.ouv.filter(o=>!o.dv||S.devis.some(d=>d.id===o.dv)); // copies « chantier » dont le devis n'existe plus
 
 /* ---------- utilitaires ---------- */
@@ -304,17 +309,18 @@ try{const t=localStorage.getItem(KEY+'_tab');if(t&&['list','devis','lib','set'].
 let libCat='MO';
 
 let ret=null; // retour vers le devis quand on ouvre un ouvrage depuis un devis
-function setView(v,id,back){if(v==='edit')ret=back||null;view=v;curId=id??null;if(v!=='edit'&&v!=='devisEdit'){try{localStorage.setItem(KEY+'_tab',v)}catch(e){}}render();window.scrollTo(0,0)}
+let posteDv=null; // devis de la ligne ouverte
+function setView(v,id,back){if(v==='edit')ret=back||null;view=v;curId=id??null;if(v!=='edit'&&v!=='devisEdit'&&v!=='poste'){try{localStorage.setItem(KEY+'_tab',v)}catch(e){}}render();window.scrollTo(0,0)}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-$('#backBtn').addEventListener('click',()=>{if(view==='edit'&&ret){const r=ret;ret=null;setView(r.view,r.id)}else setView(view==='devisEdit'?'devis':'list')});
+$('#backBtn').addEventListener('click',()=>{if(view==='edit'&&ret){const r=ret;ret=null;setView(r.view,r.id)}else if(view==='poste')setView('devisEdit',posteDv);else setView(view==='devisEdit'?'devis':'list')});
 
 function render(){
-  const tabOf=view==='edit'?(ret?'devis':'list'):view==='devisEdit'?'devis':view;
+  const tabOf=view==='edit'?(ret?'devis':'list'):view==='devisEdit'||view==='poste'?'devis':view;
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-current',b.dataset.view===tabOf?'page':'false'));
-  $('#backBtn').hidden=view!=='edit'&&view!=='devisEdit';
-  $('#backBtn').textContent=view==='edit'&&!ret?'← Liste':'← Devis';
+  $('#backBtn').hidden=view!=='edit'&&view!=='devisEdit'&&view!=='poste';
+  $('#backBtn').textContent=view==='edit'&&!ret?'← Liste':view==='edit'&&ret.view==='poste'?'← Ligne':'← Devis';
   $('#hdrPill').hidden=true;
-  if(view==='list')renderList();else if(view==='edit')renderEdit();else if(view==='devis')renderDevisList();else if(view==='devisEdit')renderDevisEdit();else if(view==='lib')renderLib();else renderSet();
+  if(view==='list')renderList();else if(view==='edit')renderEdit();else if(view==='devis')renderDevisList();else if(view==='devisEdit')renderDevisEdit();else if(view==='poste')renderPoste();else if(view==='lib')renderLib();else renderSet();
 }
 
 /* ----- liste des ouvrages ----- */
@@ -396,7 +402,7 @@ function renderEdit(){
   $('#dupBtn').addEventListener('click',()=>{const c=JSON.parse(JSON.stringify(o));c.id=uid();c.des=(o.des||'Ouvrage')+' (copie)';c.lignes.forEach(l=>l.id=uid());delete c.dv;delete c.src;c.upd=Date.now();S.ouv.push(c);save();toast('Copie créée');setView('edit',c.id)});
   $('#expBtn').addEventListener('click',()=>exportXLSX([o],(o.code||o.des||'Sous-detail')));
   $('#cpBtn').addEventListener('click',()=>copyTSV(o));
-  const usedDv=S.devis.filter(d=>d.lignes.some(l=>l.ouvId===o.id)).length;
+  const usedDv=S.devis.filter(d=>d.lignes.some(l=>(l.items||[]).some(i=>i.ouvId===o.id))).length;
   armDelete($('#delBtn'),()=>{S.ouv=S.ouv.filter(x=>x.id!==o.id);save();toast('Ouvrage supprimé');setView('list')},usedDv?'Confirmer (utilisé dans '+usedDv+' devis)':undefined);
   renderCible(o);
 }
@@ -480,13 +486,15 @@ function bindLignes(o){
     row.querySelectorAll('[data-k]').forEach(el=>{
       const k=el.dataset.k;const isNum=['nb','hj','pu','puSpec','ratio','pertes','tu','tpj'].includes(k);
       const ev=el.tagName==='SELECT'?'change':'input';
-      el.addEventListener(ev,()=>{l[k]=isNum?(el.value.trim()===''?null:num(el.value)):el.value;touch(o);if(el.dataset.rerender||el.tagName==='SELECT'&&l.bloc!=='EVAC')renderEdit();else refresh(o)});
+      el.addEventListener(ev,()=>{l[k]=isNum?(el.value.trim()===''?null:num(el.value)):el.value;touch(o);if(el.dataset.rerender||el.tagName==='SELECT'&&l.bloc!=='EVAC')reEdit();else reRefresh(o)});
     });
-    const del=row.querySelector('[data-del]');armDelete(del,()=>{o.lignes=o.lignes.filter(x=>x.id!==l.id);touch(o);renderEdit()},'Confirmer');
+    const del=row.querySelector('[data-del]');armDelete(del,()=>{o.lignes=o.lignes.filter(x=>x.id!==l.id);touch(o);reEdit()},'Confirmer');
     const ep=row.querySelector('[data-ep]');if(ep)ep.addEventListener('click',()=>openEpaisseur(o,l));
     const vol=row.querySelector('[data-vol]');if(vol)vol.addEventListener('click',()=>openVolume(o,l));
   });
 }
+function reEdit(){view==='poste'?renderPoste():renderEdit()}
+function reRefresh(o){view==='poste'?refreshPoste():refresh(o)}
 function armDelete(btn,fn,label){if(!btn)return;const base=btn.innerHTML;btn.addEventListener('click',()=>{if(btn.classList.contains('armed')){fn();return}btn.classList.add('armed');btn.textContent=label||'Confirmer la suppression';clearTimeout(btn._t);btn._t=setTimeout(()=>{btn.classList.remove('armed');btn.innerHTML=base},3500)})}
 
 /* ----- feuilles (sélection, aides de calcul) ----- */
@@ -496,7 +504,7 @@ function closeSheet(){$('#sheetHost').innerHTML='';document.removeEventListener(
 function openAdd(o,bloc){
   if(bloc==='EVAC'){
     const cam=S.lib.find(x=>x.cat==='MAT'&&/camion 8×4$/i.test(x.nom));const chf=S.lib.find(x=>x.cat==='MO'&&/chauffeur/i.test(x.nom));const dch=S.lib.find(x=>x.cat==='FOUR'&&/décharge/i.test(x.nom));
-    o.lignes.push({id:uid(),bloc:'EVAC',tu:null,tpj:null,hj:null,camion:cam?cam.id:'',chauffeur:chf?chf.id:'',decharge:dch?dch.id:''});touch(o);renderEdit();return}
+    o.lignes.push({id:uid(),bloc:'EVAC',tu:null,tpj:null,hj:null,camion:cam?cam.id:'',chauffeur:chf?chf.id:'',decharge:dch?dch.id:''});touch(o);reEdit();return}
   const items=S.lib.filter(x=>x.cat===bloc);
   let h='<div class="row"><h2 class="grow">Ajouter : '+CATS[bloc].nom+'</h2><button class="btn ghost" id="shClose">Fermer</button></div>'+
     '<input type="search" id="shQ" placeholder="Filtrer" aria-label="Filtrer la bibliothèque"><div class="stack" id="shList"></div>'+
@@ -512,7 +520,7 @@ function addLine(o,bloc,ref){
   const l={id:uid(),bloc,ref:ref||null};
   if(bloc==='MO'||bloc==='MAT'){l.nb=1;l.hj=null;if(!ref){l.nom='';l.unite=bloc==='MO'?'h':'j';l.pu=null}}
   else{l.ratio=null;l.pertes=null;if(!ref){l.nom='';l.unite=bloc==='ST'?'U':'t';l.pu=null}}
-  o.lignes.push(l);touch(o);renderEdit();
+  o.lignes.push(l);touch(o);reEdit();
   setTimeout(()=>{const f=document.getElementById((bloc==='MO'||bloc==='MAT'?'nb-':'ra-')+l.id);f&&f.focus()},30);
 }
 function openEpaisseur(o,l){
@@ -522,7 +530,7 @@ function openEpaisseur(o,l){
     '<p class="small muted" style="margin:0">Pour un matériau au m³, mets la densité à 1.</p><div class="mono" id="ep-out">—</div><div class="row"><button class="btn primary" id="ep-ok">Reporter dans la ligne</button><button class="btn ghost" id="ep-x">Annuler</button></div>',()=>{
       const upd=()=>{const e=num($('#ep-e').value),d=num($('#ep-d').value);const v=e!==null&&d!==null?e/100*d:null;$('#ep-out').textContent=v===null?'—':fx(v,4)+' '+(r.unite||'')+' par '+o.unite;return v};
       $('#ep-e').addEventListener('input',upd);$('#ep-d').addEventListener('input',upd);$('#ep-x').addEventListener('click',closeSheet);
-      $('#ep-ok').addEventListener('click',()=>{const v=upd();if(v!==null){l.ratio=Math.round(v*1e6)/1e6;touch(o);closeSheet();renderEdit()}});
+      $('#ep-ok').addEventListener('click',()=>{const v=upd();if(v!==null){l.ratio=Math.round(v*1e6)/1e6;touch(o);closeSheet();reEdit()}});
       $('#ep-e').focus();
     });
 }
@@ -532,7 +540,7 @@ function openVolume(o,l){
     '<div class="mono" id="vo-out">—</div><div class="row"><button class="btn primary" id="vo-ok">Reporter</button><button class="btn ghost" id="vo-x">Annuler</button></div>',()=>{
       const upd=()=>{const v=num($('#vo-v').value),d=num($('#vo-d').value);const t=v!==null&&d!==null?v*d:null;$('#vo-out').textContent=t===null?'—':fx(t,4)+' t par '+o.unite;return t};
       $('#vo-v').addEventListener('input',upd);$('#vo-d').addEventListener('input',upd);$('#vo-x').addEventListener('click',closeSheet);
-      $('#vo-ok').addEventListener('click',()=>{const t=upd();if(t!==null){l.tu=Math.round(t*1e6)/1e6;touch(o);closeSheet();renderEdit()}});
+      $('#vo-ok').addEventListener('click',()=>{const t=upd();if(t!==null){l.tu=Math.round(t*1e6)/1e6;touch(o);closeSheet();reEdit()}});
       $('#vo-v').focus();
     });
 }
@@ -584,30 +592,57 @@ function addRes(map,r,q){ // récap des ressources : quantités et déboursés �
   }
 }
 // Le devis reprend en direct le sous-détail de chaque ouvrage × la quantité du devis (nombre ou formule du métré)
+// Ligne de devis (poste QDV) = ressources ajoutées directement (Art.) + ouvrages inclus × quantité d'ouvrage par unité de ligne (Ouv.).
+// Rendement de ligne saisi : la MO et les engins (de la ligne et de ses ouvrages) sont comptés sur la durée de la ligne = quantité ÷ rendement.
+// Sans rendement de ligne : chaque ouvrage garde son propre rendement.
+function posteOuv(p,Q){
+  const R=num(p.r)>0?num(p.r):null;const lignes=[...(p.lignes||[])];const warn=[];const items=[];
+  for(const it of p.items||[]){
+    const o=S.ouv.find(x=>x.id===it.ouvId);
+    if(!o){warn.push('Un ouvrage de la ligne a été supprimé : retire-le.');items.push({it,missing:true});continue}
+    let rho=num(it.ratio);if(rho===null){rho=0;warn.push((o.des||o.code||'Ouvrage')+' : quantité d’ouvrage par '+(p.unite||'unité')+' à saisir.')}
+    const Ro=num(o.r)>0?num(o.r):null;items.push({it,o,rho});
+    for(const l of o.lignes){const c={...l,id:it.id+'_'+l.id,src:o.des||o.code||'Ouvrage'};
+      if(l.bloc==='MO'||l.bloc==='MAT'){if(!rho)continue;if(!R)c.nb=(num(l.nb)??0)*rho/(Ro||1)}
+      else if(l.bloc==='FOUR'||l.bloc==='ST')c.ratio=(num(l.ratio)??0)*rho;
+      else if(l.bloc==='EVAC')c.tu=(num(l.tu)??0)*rho;
+      lignes.push(c)}
+    if(!R&&!Ro&&rho&&o.lignes.some(l=>l.bloc==='MO'||l.bloc==='MAT'))warn.push((o.des||'Ouvrage')+' : pas de rendement (ni sur la ligne, ni sur l’ouvrage).');
+  }
+  return {v:{id:p.id,code:p.code,des:p.des,unite:p.unite,r:R,q:Q,lignes},items,warn};
+}
+function computePoste(p,Q,opt){
+  const pv=posteOuv(p,Q);const r=compute(pv.v,opt);
+  if(!pv.v.r&&!(p.lignes||[]).some(l=>l.bloc==='MO'||l.bloc==='MAT'))r.noR=false;
+  r.warn=[...new Set([...r.warn,...pv.warn])];
+  r.items=pv.items.map(x=>{if(x.missing)return x;const ids=new Set(x.o.lignes.map(l=>x.it.id+'_'+l.id));return {...x,u:r.det.filter(d=>ids.has(d.l.id)).reduce((a,d)=>a+d.u,0)}});
+  r.v=pv.v;return r;
+}
 function computeDevis(dv){
   const blocs={MO:0,MAT:0,FOUR:0,ST:0,EVAC:0}; const rows=[]; const warn=[]; const chaps=[]; const vres={dv:[]};
   const K=devisK(dv); const base=evalVars(dv.vars,Object.create(null),vres.dv);
   let sc=base,ht=0,ds=0,jours=0,chap=null,nOuv=0;
   for(const l of dv.lignes){
     if(l.type==='chap'){chap={l,ht:0};chaps.push(chap);vres[l.id]=[];sc=evalVars(l.vars,base,vres[l.id]);rows.push({l,chap:true,c:chap});continue}
+    if(l.type!=='poste')continue;
     let q,qr=null;
     if(l.qf){qr=evalF(l.qf,sc);q=qr.v||0}else q=num(l.q)||0;
-    const o=S.ouv.find(x=>x.id===l.ouvId);
-    if(!o){rows.push({l,missing:true});warn.push('Un ouvrage du devis a été supprimé : retire la ligne.');continue}
     nOuv++;
-    const r=compute(o,{K});
+    const r=computePoste(l,q,{K});
     ds+=r.ds*q; for(const b in blocs)blocs[b]+=r.blocs[b]*q; if(r.R>0&&q>0)jours+=q/r.R;
-    if(r.warn.length||r.noR)warn.push((o.code||o.des||'Ouvrage')+' : sous-détail à compléter.');
-    if(qr&&qr.err)warn.push((o.des||o.code||'Ouvrage')+' : formule de quantité — '+qr.err);
-    else if(!(q>0))warn.push((o.des||o.code||'Ouvrage')+' : quantité à saisir.');
-    rows.push({l,o,r,q,qr,ch:chap});
+    const nm=l.des||l.code||'Ligne';
+    if(!(l.lignes||[]).length&&!(l.items||[]).length)warn.push(nm+' : à composer (ouvrages ou ressources).');
+    else if(r.warn.length||r.noR)warn.push(nm+' : sous-détail à compléter.');
+    if(qr&&qr.err)warn.push(nm+' : formule de quantité — '+qr.err);
+    else if(!(q>0))warn.push(nm+' : quantité à saisir.');
+    rows.push({l,r,q,qr,ch:chap});
   }
   const fc=fcTotal(dv),rFC=fc>0&&ds>0?fc/ds:0; const resMap=new Map();
-  for(const x of rows){if(x.chap||x.missing)continue;
-    if(rFC)x.r=compute(x.o,{K,rFC});
+  for(const x of rows){if(x.chap)continue;
+    if(rFC)x.r=computePoste(x.l,x.q,{K,rFC});
     x.tot=Math.round(x.r.pv*x.q*100)/100; ht+=x.tot; if(x.ch)x.ch.ht+=x.tot; addRes(resMap,x.r,x.q)}
   for(const k in vres)vres[k].forEach(r=>{if(r.err)warn.push('Variable : '+r.err)});
-  if(fc>0&&!(ds>0))warn.push('Frais de chantier : ajoute des ouvrages avec quantités pour les ventiler.');
+  if(fc>0&&!(ds>0))warn.push('Frais de chantier : ajoute des lignes composées et leurs quantités pour les ventiler.');
   const s=S.settings;
   if(fc>0&&!(num(dv.k)>0)&&s.kMode!=='direct'&&(num(s.pct.enc)||0)>0)warn.push('Double compte possible : frais de chantier ventilés ET « encadrement » '+fx(num(s.pct.enc))+' % dans K. Saisis un K propre au devis sans encadrement, ou retire la ligne d’encadrement des frais.');
   const ord={MO:0,MAT:1,EVAC:2,FOUR:3,ST:4};
@@ -628,7 +663,16 @@ function bindVars(cont,dv){
     if(b.dataset.vadd){list.push({nom:'',val:''})}else list.splice(+b.dataset.vdel,1);
     touchDv(dv);renderDevisEdit();if(b.dataset.vadd)setTimeout(()=>{const f=document.querySelectorAll('[data-vo="'+owner+'"] input.vn');f.length&&f[f.length-1].focus()},30)});
 }
-function qresTxt(x){if(!x.qr)return '';if(x.qr.err)return x.qr.err;return '= '+fx(x.q,3)+' '+(x.o?x.o.unite:'')}
+function qresTxt(x){if(!x.qr)return '';if(x.qr.err)return x.qr.err;return '= '+fx(x.q,3)+' '+(x.l.unite||'')}
+function durTxt(x){return x.r.R>0&&x.q>0?fx(x.q/x.r.R,2)+' j':'—'}
+function compTxt(x){const ni=(x.l.items||[]).length,nr=(x.l.lignes||[]).length;const t=[];
+  if(ni)t.push(ni+' ouvrage'+(ni>1?'s':''));if(nr)t.push(nr+' ressource'+(nr>1?'s':''));if(x.r.R>0&&x.q>0)t.push(fx(x.q/x.r.R,1)+' j');
+  return t.length?t.join(' · '):'à composer'}
+function unitOpts(u){const l=UNITES_OUV.includes(u)||!u?UNITES_OUV:[u,...UNITES_OUV];return l.map(x=>'<option'+(x===u?' selected':'')+'>'+esc(x)+'</option>').join('')}
+function setQ(l,t){t=String(t).trim();if(t===''){l.q=null;delete l.qf}else if(isPlainNum(t)){l.q=num(t);delete l.qf}else{l.qf=t;l.q=null}}
+function newPoste(o){const p={id:uid(),type:'poste',code:o?o.code||'':'',des:o?o.des||'':'',unite:o?o.unite:'m²',q:o?num(o.q):null,r:null,lignes:[],items:[]};if(o)p.items.push({id:uid(),ouvId:o.id,ratio:1});return p}
+function openPoste(dv,id){posteDv=dv.id;setView('poste',id)}
+function cleanCopies(dv){S.ouv=S.ouv.filter(o=>o.dv!==dv.id||dv.lignes.some(l=>(l.items||[]).some(i=>i.ouvId===o.id)))}
 let dvFiltre='';
 function renderDevisList(){
   $('#title').textContent='Devis';
@@ -638,14 +682,14 @@ function renderDevisList(){
   if(!S.devis.length){
     h+='<div class="card empty stack"><h2>Ton premier devis</h2><ol class="steps">'+
       '<li><span>Prépare tes ouvrages dans l’onglet <b>Ouvrages</b> : chacun a son sous-détail et son prix de vente.'+(libOuv().length?' <b>'+libOuv().length+' ouvrage'+(libOuv().length>1?'s sont prêts':' est prêt')+'.</b>':'')+'</span></li>'+
-      '<li><span>Crée un devis et ajoute les ouvrages, avec un titre de chapitre si tu veux (Terrassements, Voirie…).</span></li>'+
-      '<li><span>Saisis les quantités, ou une formule du métré (<span class="mono">S*0,05</span>) avec des variables de chapitre : total HT, TVA, TTC et marge se calculent. Export Excel QDV en un bouton.</span></li></ol>'+
+      '<li><span>Crée un devis : saisis tes lignes à la main ou importe ton DQE / BPU (Excel). Chaque ligne a sa quantité et son rendement (ex. 300 m² à 100 m²/j).</span></li>'+
+      '<li><span>Compose chaque ligne avec tes ouvrages et des ressources : tout se calcule (PU, total HT, TVA, marge, ressources). Export Excel QDV en un bouton.</span></li></ol>'+
       '<div class="row" style="justify-content:center"><button class="btn primary" id="newDv2">Créer un devis</button></div></div>';
   }else if(!list.length){h+='<p class="muted">Aucun devis ne correspond à « '+esc(dvFiltre)+' ».</p>'}
   for(const d of list){
     const c=computeDevis(d);
     const st=c.warn.length?'<span class="pill warn">À compléter</span>':'';
-    h+='<div class="card ouv-item" data-id="'+d.id+'" role="button" tabindex="0"><div><div class="code">'+esc(d.client||'sans client')+' · '+esc(dateFr(d.date))+'</div><div class="des">'+esc(d.nom||'Devis sans nom')+'</div><div class="small muted">'+c.nOuv+' ouvrage'+(c.nOuv>1?'s':'')+(c.ht?' · marge '+F0.format(c.marge/c.ht*100)+' %':'')+' '+st+'</div></div><div class="pv">'+eur(c.ht,0)+'<small>Total HT</small></div></div>';
+    h+='<div class="card ouv-item" data-id="'+d.id+'" role="button" tabindex="0"><div><div class="code">'+esc(d.client||'sans client')+' · '+esc(dateFr(d.date))+'</div><div class="des">'+esc(d.nom||'Devis sans nom')+'</div><div class="small muted">'+c.nOuv+' ligne'+(c.nOuv>1?'s':'')+(c.ht?' · marge '+F0.format(c.marge/c.ht*100)+' %':'')+' '+st+'</div></div><div class="pv">'+eur(c.ht,0)+'<small>Total HT</small></div></div>';
   }
   h+='</div>';
   const app=$('#app');app.innerHTML=h;
@@ -659,19 +703,18 @@ function dvSumHTML(c){
   return '<div class="card"><div class="kpi"><div class="lbl">Déboursé sec</div><div class="val">'+eur(c.ds,0)+'</div></div><div class="kpi pv"><div class="lbl">Total HT</div><div class="val">'+eur(c.ht,0)+'</div></div><div class="bar" aria-hidden="true">'+seg+'</div></div>';
 }
 function dvLinesHTML(dv,c){
-  if(!c.rows.length)return '<p class="muted small" style="margin:0">Aucun ouvrage. Touche « Ajouter des ouvrages ».</p>';
+  if(!c.rows.length)return '<p class="muted small" style="margin:0">Aucune ligne. Crée tes lignes à la main (« + Ligne ») ou importe ton DQE / BPU, puis compose chaque ligne avec des ouvrages et des ressources.</p>';
   const mv=id=>'<span class="mv"><button class="btn sm ghost" data-up="'+id+'" aria-label="Monter">↑</button><button class="btn sm ghost" data-down="'+id+'" aria-label="Descendre">↓</button></span>';
   const del=id=>'<button class="btn sm ghost danger" data-del="'+id+'" aria-label="Retirer la ligne">✕</button>';
   return c.rows.map(x=>{const id=x.l.id;
     if(x.chap)return '<div class="dv-chap" data-lid="'+id+'"><div class="grow stack" style="gap:6px"><input type="text" data-k="titre" value="'+esc(x.l.titre)+'" placeholder="Titre du chapitre (ex. Terrassements)" aria-label="Titre du chapitre"><span class="small muted">Sous-total : <span class="st" data-st="'+id+'">'+eur(x.c.ht)+'</span></span>'+varsHTML(x.l.vars,id,c.vres[id])+'</div>'+mv(id)+del(id)+'</div>';
-    if(x.missing)return '<div class="dv-line" data-lid="'+id+'"><div class="hd"><div class="des">Ouvrage supprimé <span class="pill bad">à retirer</span></div>'+del(id)+'</div></div>';
-    const o=x.o,r=x.r,u=esc(o.unite);
-    const isF=!!x.l.qf;
-    return '<div class="dv-line" data-lid="'+id+'"><div class="hd"><button class="des" data-open="'+o.id+'"><small>'+esc(o.code||'sans n°')+' · '+u+'</small><span>'+esc(o.des||'Sans désignation')+'</span>'+(o.dv?' <span class="pill ok">copie chantier</span>':'')+(r.warn.length||r.noR?' <span class="pill warn">à compléter</span>':'')+'</button>'+mv(id)+del(id)+'</div>'+
-      '<div class="nums"><div class="field"><label for="dq-'+id+'">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="dq-'+id+'" data-k="q" value="'+esc(isF?x.l.qf:inval(x.l.q))+'" placeholder="0 ou S*0,05" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" data-fx="'+id+'" aria-pressed="'+isF+'" aria-label="Saisir une formule (clavier lettres)" title="Formule">ƒx</button></div></div>'+
+    const l=x.l,r=x.r,u=esc(l.unite||''),isF=!!l.qf,empty=!(l.lignes||[]).length&&!(l.items||[]).length;
+    return '<div class="dv-line" data-lid="'+id+'"><div class="hd"><button class="des" data-compose="'+id+'"><small>'+esc(l.code||'sans n°')+' · '+u+'</small><span>'+esc(l.des||'Sans désignation')+'</span>'+(empty?' <span class="pill warn">à composer</span>':r.warn.length||r.noR?' <span class="pill warn">à compléter</span>':'')+'</button>'+mv(id)+del(id)+'</div>'+
+      '<div class="grid2"><div class="field"><label for="dq-'+id+'">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="dq-'+id+'" data-k="q" value="'+esc(isF?l.qf:inval(l.q))+'" placeholder="0 ou S*0,05" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" data-fx="'+id+'" aria-pressed="'+isF+'" aria-label="Saisir une formule (clavier lettres)" title="Formule">ƒx</button></div></div>'+
+      '<div class="field"><label for="dr-'+id+'">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="dr-'+id+'" data-k="r" value="'+inval(l.r)+'" placeholder="—"></div>'+
       '<div class="field"><label>PU HT</label><div class="ro" data-pu="'+id+'">'+eur(r.pv)+'</div></div>'+
       '<div class="field"><label>Total HT</label><div class="ro tot" data-tot="'+id+'">'+eur(x.tot)+'</div></div></div>'+
-      '<div class="qline"><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" data-qres="'+id+'">'+esc(qresTxt(x))+'</span>'+(o.dv?'':'<button class="btn sm ghost" data-adapt="'+id+'">Adapter pour ce chantier</button>')+'</div></div>';
+      '<div class="qline"><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" data-qres="'+id+'">'+esc(qresTxt(x))+'</span><span class="small muted" data-comp="'+id+'">'+esc(compTxt(x))+'</span><button class="btn sm" data-compose="'+id+'">Composer ›</button></div></div>';
   }).join('');
 }
 function dvTotalsHTML(dv,c){
@@ -700,8 +743,9 @@ function renderDevisEdit(){
      '<div class="field"><label for="dv-date">Date</label><input type="date" id="dv-date" value="'+esc(dv.date||'')+'"></div>'+
      '<div class="field"><label for="dv-tva">TVA %</label><input type="text" inputmode="decimal" class="numin" id="dv-tva" value="'+inval(dv.tva)+'" placeholder="20"></div></div></div>';
   h+='<div class="card stack"><div class="bloc-head"><h3>Métré : variables du devis</h3></div><p class="small muted" style="margin:0">Ex. <b>S</b> = 4000 (m² de chaussée). Dans une quantité, tape une formule : <span class="mono">S*0,05</span> → 200 m³. Majuscules et minuscules comptent (L ≠ l). Les variables d’un chapitre ne servent qu’à ce chapitre.</p><div id="dvVars">'+varsHTML(dv.vars,'dv',c.vres.dv)+'</div></div>';
-  h+='<div class="card stack"><div class="bloc-head"><h3>Ouvrages</h3><span class="tot muted small">'+c.nOuv+' ligne'+(c.nOuv>1?'s':'')+'</span></div><div id="dvLines">'+dvLinesHTML(dv,c)+'</div>'+
-     '<div class="row"><button class="btn primary" id="dvAdd">+ Ajouter des ouvrages</button><button class="btn" id="dvChap">+ Titre de chapitre</button></div></div>';
+  h+='<div class="card stack"><div class="bloc-head"><h3>Lignes du devis</h3><span class="tot muted small">'+c.nOuv+' ligne'+(c.nOuv>1?'s':'')+'</span></div><div id="dvLines">'+dvLinesHTML(dv,c)+'</div>'+
+     '<div class="addrow"><button class="btn primary" id="dvNew">+ Ligne</button><button class="btn" id="dvChap">+ Titre de chapitre</button><button class="btn" id="dvImp">Importer DQE / BPU</button><button class="btn ghost" id="dvAdd">+ Ligne depuis un ouvrage</button></div>'+
+     '<input type="file" id="dvFile" accept=".xlsx,.xls,.xlsm,.csv" hidden></div>';
   h+='<div class="card stack" id="dvFc">'+dvFcHTML(dv,c)+'</div>';
   h+='<div class="card stack" id="dvTotals">'+dvTotalsHTML(dv,c)+'</div>';
   h+='<div class="row"><button class="btn" id="dvExp">Exporter (Excel)</button><button class="btn" id="dvDup">Dupliquer</button><button class="btn danger" id="dvDel">Supprimer le devis</button></div></div>';
@@ -710,32 +754,159 @@ function renderDevisEdit(){
   bind('dv-nom','nom');bind('dv-cli','client');bind('dv-date','date');bind('dv-tva','tva',true,true);
   const box=$('#dvLines');
   box.addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;const row=e.target.closest('[data-lid]');const l=dv.lignes.find(x=>x.id===row.dataset.lid);if(!l)return;
-    if(k==='q'){const t=e.target.value.trim();if(t===''){l.q=null;delete l.qf}else if(isPlainNum(t)){l.q=num(t);delete l.qf}else{l.qf=t;l.q=null}}else l[k]=e.target.value;
+    if(k==='q')setQ(l,e.target.value);else if(k==='r')l.r=num(e.target.value);else l[k]=e.target.value;
     touchDv(dv);refreshDevis(dv)});
   box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-    if(b.dataset.open){setView('edit',b.dataset.open,{view:'devisEdit',id:dv.id});return}
+    if(b.dataset.compose){openPoste(dv,b.dataset.compose);return}
     if(b.dataset.fx){const f=$('#dq-'+b.dataset.fx);const on=f.inputMode!=='text';f.inputMode=on?'text':'decimal';b.setAttribute('aria-pressed',on);f.blur();setTimeout(()=>f.focus(),30);return}
-    if(b.dataset.adapt){const l=dv.lignes.find(x=>x.id===b.dataset.adapt);const o=l&&S.ouv.find(x=>x.id===l.ouvId);if(!o)return;
-      const cp=JSON.parse(JSON.stringify(o));cp.id=uid();cp.dv=dv.id;cp.src=o.id;cp.lignes.forEach(x=>x.id=uid());cp.upd=Date.now();S.ouv.push(cp);l.ouvId=cp.id;touchDv(dv);
-      toast('Copie propre à ce devis : l’ouvrage de base ne change pas');setView('edit',cp.id,{view:'devisEdit',id:dv.id});return}
     const mvId=b.dataset.up||b.dataset.down;if(mvId){const i=dv.lignes.findIndex(x=>x.id===mvId),j=b.dataset.up?i-1:i+1;if(i<0||j<0||j>=dv.lignes.length)return;[dv.lignes[i],dv.lignes[j]]=[dv.lignes[j],dv.lignes[i]];touchDv(dv);renderDevisEdit();return}});
-  box.querySelectorAll('[data-del]').forEach(b=>armDelete(b,()=>{const l=dv.lignes.find(x=>x.id===b.dataset.del);dv.lignes=dv.lignes.filter(x=>x.id!==b.dataset.del);
-    if(l&&l.ouvId){const o=S.ouv.find(x=>x.id===l.ouvId);if(o&&o.dv===dv.id&&!dv.lignes.some(x=>x.ouvId===o.id))S.ouv=S.ouv.filter(x=>x!==o)}touchDv(dv);renderDevisEdit()},'Retirer ?'));
+  box.querySelectorAll('[data-del]').forEach(b=>armDelete(b,()=>{dv.lignes=dv.lignes.filter(x=>x.id!==b.dataset.del);cleanCopies(dv);touchDv(dv);renderDevisEdit()},'Retirer ?'));
   bindVars(box,dv);bindVars($('#dvVars'),dv);bindFc(dv);
-  $('#dvAdd').addEventListener('click',()=>openPickOuv(dv));
-  $('#dvChap').addEventListener('click',()=>{const l={id:uid(),type:'chap',titre:''};dv.lignes.push(l);touchDv(dv);renderDevisEdit();setTimeout(()=>{const f=document.querySelector('[data-lid="'+l.id+'"] input');f&&f.focus()},30)});
+  $('#dvNew').addEventListener('click',()=>{const p=newPoste();dv.lignes.push(p);touchDv(dv);openPoste(dv,p.id);setTimeout(()=>{const f=$('#p-des');f&&f.focus()},40)});
+  $('#dvChap').addEventListener('click',()=>{const l={id:uid(),type:'chap',titre:'',vars:[]};dv.lignes.push(l);touchDv(dv);renderDevisEdit();setTimeout(()=>{const f=document.querySelector('[data-lid="'+l.id+'"] input');f&&f.focus()},30)});
+  $('#dvImp').addEventListener('click',()=>$('#dvFile').click());
+  $('#dvFile').addEventListener('change',e=>{const f=e.target.files[0];if(f)importDevisFile(dv,f);e.target.value=''});
+  $('#dvAdd').addEventListener('click',()=>openPickOuv(dv,null));
   $('#dvExp').addEventListener('click',()=>exportDevisXLSX(dv));
   $('#dvDup').addEventListener('click',()=>{const d=JSON.parse(JSON.stringify(dv));d.id=uid();d.nom=(dv.nom||'Devis')+' (copie)';d.date=today();d.upd=Date.now();
     const map={};S.ouv.filter(o=>o.dv===dv.id).forEach(o=>{const cp=JSON.parse(JSON.stringify(o));cp.id=uid();cp.dv=d.id;map[o.id]=cp.id;S.ouv.push(cp)});
-    d.lignes.forEach(l=>{l.id=uid();if(map[l.ouvId])l.ouvId=map[l.ouvId]});S.devis.push(d);save();toast('Copie créée');setView('devisEdit',d.id)});
+    d.lignes.forEach(l=>{l.id=uid();(l.items||[]).forEach(i=>{i.id=uid();if(map[i.ouvId])i.ouvId=map[i.ouvId]});(l.lignes||[]).forEach(x=>x.id=uid())});S.devis.push(d);save();toast('Copie créée');setView('devisEdit',d.id)});
   armDelete($('#dvDel'),()=>{S.devis=S.devis.filter(x=>x.id!==dv.id);S.ouv=S.ouv.filter(o=>o.dv!==dv.id);save();toast('Devis supprimé');setView('devis')});
 }
 function refreshDevis(dv){
   const c=computeDevis(dv);$('#dvSum').innerHTML=dvSumHTML(c);const op=$('#dvTotals details.rsd');const wasOpen=op&&op.open;$('#dvTotals').innerHTML=dvTotalsHTML(dv,c);if(wasOpen){const d=$('#dvTotals details.rsd');d&&(d.open=true)}
   const set=(sel,txt,bad)=>{const e=document.querySelector(sel);if(e){e.textContent=txt;if(bad!==undefined)e.classList.toggle('bad',!!bad)}};
-  for(const x of c.rows){const id=x.l.id;if(x.chap){set('[data-st="'+id+'"]',eur(x.c.ht))}else if(!x.missing){set('[data-tot="'+id+'"]',eur(x.tot));set('[data-pu="'+id+'"]',eur(x.r.pv));set('[data-qres="'+id+'"]',qresTxt(x),x.qr&&x.qr.err)}}
+  for(const x of c.rows){const id=x.l.id;if(x.chap){set('[data-st="'+id+'"]',eur(x.c.ht))}else{set('[data-tot="'+id+'"]',eur(x.tot));set('[data-pu="'+id+'"]',eur(x.r.pv));set('[data-qres="'+id+'"]',qresTxt(x),x.qr&&x.qr.err);set('[data-comp="'+id+'"]',compTxt(x))}}
   for(const k in c.vres){const list=k==='dv'?dv.vars:(dv.lignes.find(x=>x.id===k)||{}).vars;c.vres[k].forEach((r,i)=>set('[data-vres="'+k+':'+i+'"]',varResTxt((list||[])[i]||{},r),r.err))}
   set('#fcRes',fcResTxt(dv,c));
+}
+/* ----- ligne de devis : composition (ouvrages + ressources), rendement de ligne ----- */
+function curPoste(){const dv=S.devis.find(d=>d.id===posteDv);const p=dv&&dv.lignes.find(l=>l.id===curId&&l.type==='poste');if(!p)return null;
+  if(!Array.isArray(p.lignes))p.lignes=[];if(!Array.isArray(p.items))p.items=[];const c=computeDevis(dv);return {dv,p,c,x:c.rows.find(r=>r.l===p)}}
+const ADD_LBL={MO:"+ Main-d’œuvre",MAT:'+ Engin / matériel',FOUR:'+ Matériau',EVAC:'+ Évacuation',ST:'+ Sous-traitance'};
+function rNote(p,x){return num(p.r)>0?'<p class="small muted" style="margin:0">Main-d’œuvre et engins de la ligne <b>et de ses ouvrages</b> comptés sur '+durTxt(x)+' (quantité ÷ rendement). Matériaux et évacuation suivent la quantité.</p>':'<div class="alert info small">Sans rendement de ligne, chaque ouvrage garde son propre rendement. Saisis un rendement (ex. 100 '+esc(p.unite||'')+'/j) pour compter toute la main-d’œuvre et les engins sur la durée de la ligne.</div>'}
+function itemCalc(p,x,it){if(it.missing)return '';const o=it.o;return 'Total '+fx(it.rho*x.q,2)+' '+esc(o.unite)+' · coût <b>'+eur(it.u)+'/'+esc(p.unite||'')+'</b>'+(num(p.r)>0?'':' · rendement de l’ouvrage '+(num(o.r)>0?fx(num(o.r))+' '+esc(o.unite)+'/j':'non saisi'))}
+function renderPoste(){
+  const k=curPoste(); if(!k){setView(posteDv?'devisEdit':'devis',posteDv);return}
+  const {dv,p,x}=k,r=x.r,u=esc(p.unite||''),isF=!!p.qf;
+  $('#title').textContent=p.des||'Nouvelle ligne';
+  let h='<div class="sumbar" id="sumbar">'+sumHTML(p,r)+'</div><div class="stack">';
+  h+='<div class="card stack"><div class="grid2"><div class="field"><label for="p-code">N° de prix</label><input type="text" id="p-code" value="'+esc(p.code)+'" placeholder="V050.014.20.0002.0"></div>'+
+     '<div class="field"><label for="p-unite">Unité</label><select id="p-unite">'+unitOpts(p.unite)+'</select></div></div>'+
+     '<div class="field"><label for="p-des">Désignation</label><input type="text" id="p-des" value="'+esc(p.des)+'" placeholder="Terrassement en déblai"></div>'+
+     '<div class="grid3"><div class="field"><label for="p-q">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="p-q" value="'+esc(isF?p.qf:inval(p.q))+'" placeholder="300" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" id="p-fx" aria-pressed="'+isF+'" aria-label="Saisir une formule (clavier lettres)">ƒx</button></div><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" id="p-qres">'+esc(qresTxt(x))+'</span></div>'+
+     '<div class="field"><label for="p-r">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="p-r" value="'+inval(p.r)+'" placeholder="100"></div>'+
+     '<div class="field"><label>Durée</label><div class="mono" id="p-duree" style="padding:10px 2px">'+durTxt(x)+'</div></div></div>'+
+     '<div id="p-rnote">'+rNote(p,x)+'</div></div>';
+  // ouvrages inclus
+  const itTot=r.items.reduce((a,it)=>a+(it.u||0),0);
+  h+='<section class="bloc stack" style="--c:var(--accent)"><div class="bloc-head"><h3>Ouvrages (Ouv.)</h3><span class="tot" id="p-ouvtot">'+eur(itTot)+' / '+u+'</span></div>'+
+     '<p class="small muted" style="margin:0">Quantité d’ouvrage par '+u+' de ligne. Même unité : 1. Ex. ligne en m², déblai en m³ sur 30 cm : 0,30.</p>';
+  for(const it of r.items){const id=it.it.id;
+    if(it.missing){h+='<div class="ligne" data-iid="'+id+'"><div class="top"><div class="nom">Ouvrage supprimé <span class="pill bad">à retirer</span></div><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer">✕</button></div></div>';continue}
+    const o=it.o;
+    h+='<div class="ligne" data-iid="'+id+'"><div class="top"><button class="nom linkb" data-iopen="'+o.id+'"><span class="mono small muted">'+esc(o.code||'sans n°')+' · '+esc(o.unite)+'</span><br>'+esc(o.des||'Sans désignation')+'</button><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer l’ouvrage">✕</button></div>'+
+       '<div class="field"><label for="ir-'+id+'">'+esc(o.unite)+' d’ouvrage par '+u+'</label><input type="text" inputmode="decimal" class="numin" id="ir-'+id+'" data-ir="'+id+'" value="'+inval(it.it.ratio)+'" placeholder="1"></div>'+
+       '<div class="calc" data-icalc="'+id+'">'+itemCalc(p,x,it)+'</div></div>';
+  }
+  h+='<div class="row"><button class="btn sm" id="p-addOuv">+ Ajouter un ouvrage</button></div></section>';
+  // ressources directes
+  const own=d=>p.lignes.includes(d.l);
+  h+='<section class="bloc stack" style="--c:var(--fg)"><div class="bloc-head"><h3>Ressources de la ligne (Art.)</h3></div>';
+  for(const b of ['MO','MAT','FOUR','EVAC','ST']){const lines=r.det.filter(d=>d.bloc===b&&own(d));if(!lines.length)continue;
+    h+='<div class="bloc-head" style="--c:var('+CATS[b].c+')"><h3>'+CATS[b].nom+'</h3><span class="tot" data-btot="'+b+'">'+eur(lines.reduce((a,d)=>a+d.u,0))+' / '+u+'</span></div>'+lines.map(d=>ligneHTML(p,d)).join('')}
+  h+='<div class="addrow">'+['MO','MAT','FOUR','EVAC','ST'].map(b=>'<button class="btn sm" data-add="'+b+'">'+ADD_LBL[b]+'</button>').join('')+'</div></section>';
+  // valeur cible
+  h+='<div class="card target stack"><h3>Valeur cible</h3><p class="small" style="margin:0">Tu fixes le prix de vente de la ligne, la calculette trouve le rendement.</p>'+
+     '<div class="field"><label for="p-cible">Prix de vente visé (€ HT / '+u+')</label><input type="text" inputmode="decimal" class="numin" id="p-cible" value="'+inval(p.cible)+'" placeholder="ex. 18,50"></div><div id="p-cibleOut"></div></div>';
+  h+='<div class="card stack" id="resCard">'+resHTML(p,r)+'</div>';
+  h+='<div class="row"><button class="btn" id="p-save">Enregistrer comme ouvrage</button><button class="btn" id="p-dup">Dupliquer la ligne</button><button class="btn danger" id="p-del">Supprimer la ligne</button></div></div>';
+  const app=$('#app');app.innerHTML=h;
+  const tp=()=>touchDv(dv);
+  $('#p-code').addEventListener('input',e=>{p.code=e.target.value;tp()});
+  $('#p-des').addEventListener('input',e=>{p.des=e.target.value;$('#title').textContent=p.des||'Nouvelle ligne';tp()});
+  $('#p-unite').addEventListener('change',e=>{p.unite=e.target.value;tp();renderPoste()});
+  $('#p-q').addEventListener('input',e=>{setQ(p,e.target.value);tp();refreshPoste()});
+  $('#p-fx').addEventListener('click',e=>{const f=$('#p-q');const on=f.inputMode!=='text';f.inputMode=on?'text':'decimal';e.currentTarget.setAttribute('aria-pressed',on);f.blur();setTimeout(()=>f.focus(),30)});
+  $('#p-r').addEventListener('input',e=>{p.r=num(e.target.value);tp();refreshPoste()});
+  $('#p-cible').addEventListener('input',e=>{p.cible=num(e.target.value);tp();posteCible()});
+  app.querySelectorAll('[data-ir]').forEach(el=>el.addEventListener('input',()=>{const it=p.items.find(i=>i.id===el.dataset.ir);if(!it)return;it.ratio=el.value.trim()===''?null:num(el.value);tp();refreshPoste()}));
+  app.querySelectorAll('[data-idel]').forEach(b=>armDelete(b,()=>{p.items=p.items.filter(i=>i.id!==b.dataset.idel);cleanCopies(dv);tp();renderPoste()},'Retirer ?'));
+  app.querySelectorAll('[data-iopen]').forEach(b=>b.addEventListener('click',()=>setView('edit',b.dataset.iopen,{view:'poste',id:p.id})));
+  $('#p-addOuv').addEventListener('click',()=>openPickOuv(dv,p));
+  app.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>openAdd(p,b.dataset.add)));
+  bindLignes(p);
+  $('#p-save').addEventListener('click',()=>{const v=posteOuv(p,num(p.q)).v;const o={id:uid(),code:p.code||'',des:p.des||'Ouvrage',unite:p.unite,q:null,r:v.r,lignes:v.lignes.map(l=>{const c=JSON.parse(JSON.stringify(l));c.id=uid();delete c.src;return c}),upd:Date.now()};
+    if(!v.r&&p.items.length)toast('Saisis d’abord un rendement de ligne : sans lui, les équipes des ouvrages ne se cumulent pas proprement');else{S.ouv.push(o);save();toast('Ouvrage « '+(o.des)+' » ajouté à tes ouvrages')}});
+  $('#p-dup').addEventListener('click',()=>{const c=JSON.parse(JSON.stringify(p));c.id=uid();c.des=(p.des||'Ligne')+' (copie)';c.items.forEach(i=>i.id=uid());c.lignes.forEach(l=>l.id=uid());dv.lignes.splice(dv.lignes.indexOf(p)+1,0,c);tp();toast('Ligne dupliquée');openPoste(dv,c.id)});
+  armDelete($('#p-del'),()=>{dv.lignes=dv.lignes.filter(l=>l!==p);cleanCopies(dv);tp();toast('Ligne supprimée');setView('devisEdit',dv.id)});
+  posteCible(k);
+}
+function refreshPoste(){
+  const k=curPoste();if(!k)return;const {p,x}=k,r=x.r;
+  $('#sumbar').innerHTML=sumHTML(p,r);$('#resCard').innerHTML=resHTML(p,r);
+  const q=$('#p-qres');if(q){q.textContent=qresTxt(x);q.classList.toggle('bad',!!(x.qr&&x.qr.err))}
+  $('#p-duree').textContent=durTxt(x);$('#p-rnote').innerHTML=rNote(p,x);
+  for(const d of r.det){const el=document.querySelector('[data-calc="'+d.l.id+'"]');if(el)el.innerHTML=calcText(p,d)}
+  for(const b of ['MO','MAT','FOUR','EVAC','ST']){const el=document.querySelector('[data-btot="'+b+'"]');if(el)el.textContent=eur(r.det.filter(d=>d.bloc===b&&p.lignes.includes(d.l)).reduce((a,d)=>a+d.u,0))+' / '+(p.unite||'')}
+  for(const it of r.items){const el=document.querySelector('[data-icalc="'+it.it.id+'"]');if(el)el.innerHTML=itemCalc(p,x,it)}
+  $('#p-ouvtot').textContent=eur(r.items.reduce((a,it)=>a+(it.u||0),0))+' / '+(p.unite||'');
+  posteCible(k);
+}
+function posteCible(k){
+  k=k||curPoste();const el=$('#p-cibleOut');if(!k||!el)return;const {dv,p,x}=k;const t=num(p.cible);
+  if(!(t>0)){el.innerHTML='';return}
+  const r=x.r;const c=rendementCible(r,t/(1+(r.rFC||0)));
+  if(c.err){el.innerHTML='<div class="alert bad">'+esc(c.err)+'</div>';return}
+  if(!(num(p.r)>0)&&r.items.length){el.innerHTML='<div class="alert warn">Saisis d’abord un rendement de ligne : sans lui, chaque ouvrage garde son propre rendement.</div>';return}
+  el.innerHTML='<table class="res"><tbody><tr><td>Rendement nécessaire</td><td><b>'+fx(c.R,2)+' '+esc(p.unite||'')+'/j</b></td></tr>'+(x.q>0?'<tr><td>Durée correspondante</td><td>'+fx(x.q/c.R,2)+' j</td></tr>':'')+'</tbody></table><div class="row"><button class="btn primary" id="p-applyR">Appliquer ce rendement</button></div>';
+  $('#p-applyR').addEventListener('click',()=>{p.r=Math.round(c.R*1e6)/1e6;touchDv(dv);renderPoste();toast('Rendement appliqué')});
+}
+/* ----- import DQE / BPU ----- */
+function normUnit(u){const t=String(u??'').trim();const k=t.toLowerCase().replace(/[\s.]/g,'');
+  const m={'m2':'m²','m²':'m²','m3':'m³','m³':'m³','ml':'ml','m':'ml','mlin':'ml','t':'t','tonne':'t','tonnes':'t','u':'U','un':'U','unite':'U','unité':'U','pce':'U','ens':'Ft','ft':'Ft','forfait':'Ft','f':'Ft','fft':'Ft','j':'J','jour':'J','h':'H','heure':'H','kg':'kg'};return m[k]||t}
+function parseDQE(rows){
+  let hr=-1,col={};
+  for(let i=0;i<Math.min(rows.length,40)&&hr<0;i++){const c={};(rows[i]||[]).forEach((v,j)=>{const t=normTxt(v);if(!t)return;
+      if(c.des===undefined&&/designation|libelle|intitule|nature des (travaux|ouvrages|prestations)/.test(t))c.des=j;
+      else if(c.u===undefined&&/^(u|un|unite|unites|uo|u o)$/.test(t))c.u=j;
+      else if(c.q===undefined&&/^(q|qte|qt|qtes|quantite|quantites)( |$)/.test(t))c.q=j;
+      else if(c.code===undefined&&/^(n|no|num|numero|code|art|article|ref|reference|poste|item|prix n|n de prix|n du prix|n prix)( |$)/.test(t))c.code=j});
+    if(c.des!==undefined&&(c.u!==undefined||c.q!==undefined)){hr=i;col=c}}
+  if(hr<0)return {items:[]};
+  const items=[];
+  for(let i=hr+1;i<rows.length;i++){const r=rows[i]||[];const des=String(r[col.des]??'').trim();const code=col.code!==undefined?String(r[col.code]??'').trim():'';
+    const u=col.u!==undefined?String(r[col.u]??'').trim():'';let q=col.q!==undefined?cellNum(r[col.q]):null;if(Number.isNaN(q))q=null;
+    if(!des&&!code)continue;const t=normTxt(des+' '+code);
+    if(/^(sous )?total|^montant|^tva|^report|^net a payer/.test(t))continue;
+    if(!u&&q===null){if(des)items.push({type:'chap',titre:(code?code+' ':'')+des});continue}
+    items.push({type:'poste',code,des,unite:normUnit(u),q});
+  }
+  return {items};
+}
+function importDevisFile(dv,f){
+  if(!window.XLSX){toast('Import indisponible (bibliothèque Excel non chargée)');return}
+  const rd=new FileReader();
+  rd.onload=()=>{let res;
+    try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});res=wb.SheetNames.map(n=>({n,...parseDQE(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:'',raw:true}))})).filter(x=>x.items.length)}
+    catch(e){sheet('<h2>Fichier illisible</h2><p class="small" style="margin:0">Ce fichier n’a pas pu être lu. Utilise un .xlsx, .xls ou .csv.</p><button class="btn" id="imX">Fermer</button>',()=>$('#imX').addEventListener('click',closeSheet));return}
+    if(!res.length){sheet('<h2>Rien à importer</h2><p class="small" style="margin:0">Je n’ai pas trouvé de ligne d’en-tête avec « Désignation » et « Unité » ou « Quantité ». Vérifie le fichier (DQE ou BPU avec en-têtes).</p><button class="btn" id="imX">Fermer</button>',()=>$('#imX').addEventListener('click',closeSheet));return}
+    previewDQE(dv,res)};
+  rd.readAsArrayBuffer(f);
+}
+function previewDQE(dv,res){
+  let si=0;const has=dv.lignes.length>0;
+  sheet('<h2>Importer le DQE / BPU</h2>'+(res.length>1?'<div class="field"><label for="imS">Onglet</label><select id="imS">'+res.map((x,i)=>'<option value="'+i+'">'+esc(x.n)+'</option>').join('')+'</select></div>':'')+
+    '<div id="imInfo"></div>'+(has?'<div class="field"><label for="imM">Lignes actuelles du devis</label><select id="imM"><option value="add">Garder et ajouter à la suite</option><option value="rep">Remplacer</option></select></div>':'')+
+    '<div class="row"><button class="btn primary" id="imGo">Importer</button><button class="btn ghost" id="imX">Annuler</button></div>',()=>{
+    const draw=()=>{const it=res[si].items;const nc=it.filter(x=>x.type==='chap').length,np=it.length-nc;
+      $('#imInfo').innerHTML='<p class="small" style="margin:0"><b>'+np+' ligne'+(np>1?'s':'')+'</b> et <b>'+nc+' titre'+(nc>1?'s':'')+'</b> trouvés. Aperçu :</p><table class="res rs"><tbody>'+it.slice(0,10).map(x=>x.type==='chap'?'<tr class="grp"><td colspan="3">'+esc(x.titre)+'</td></tr>':'<tr><td>'+esc((x.code?x.code+' · ':'')+x.des)+'</td><td>'+(x.q===null?'—':fx(x.q,2))+' '+esc(x.unite)+'</td><td></td></tr>').join('')+'</tbody></table>'+(it.length>10?'<p class="small muted" style="margin:0">… et '+(it.length-10)+' autres.</p>':'')+'<p class="small muted" style="margin:0">Ensuite, compose chaque ligne : ouvrages, ressources et rendement.</p>'};
+    draw();const sel=$('#imS');if(sel)sel.addEventListener('change',e=>{si=+e.target.value;draw()});
+    $('#imX').addEventListener('click',closeSheet);
+    $('#imGo').addEventListener('click',()=>{const add=res[si].items.map(x=>x.type==='chap'?{id:uid(),type:'chap',titre:x.titre,vars:[]}:{...newPoste(),code:x.code,des:x.des,unite:x.unite||'U',q:x.q});
+      const rep=$('#imM')&&$('#imM').value==='rep';dv.lignes=rep?add:[...dv.lignes,...add];cleanCopies(dv);touchDv(dv);closeSheet();renderDevisEdit();
+      toast(add.filter(x=>x.type==='poste').length+' lignes importées : compose-les')});
+  });
 }
 function fcResTxt(dv,c){return c.fc?'Total '+eur(c.fc)+' → +'+F2.format(c.rFC*100)+' % sur le déboursé sec de chaque poste (DS '+eur(c.ds,0)+' → DSTU '+eur(c.dstu,0)+')':(dv.fc&&dv.fc.on?'Saisis les montants des frais de chantier.':'')}
 function dvFcHTML(dv,c){
@@ -759,43 +930,46 @@ function bindFc(dv){
   box.addEventListener('input',e=>{const k=e.target.dataset.fk;if(!k)return;const x=dv.fc.lignes[+e.target.dataset.fi];if(!x)return;x[k]=k==='montant'?num(e.target.value):e.target.value;touchDv(dv);refreshDevis(dv)});
   box.addEventListener('click',e=>{const b=e.target.closest('[data-fdel],#fcAdd');if(!b)return;if(b.id==='fcAdd')dv.fc.lignes.push({nom:'',montant:null});else dv.fc.lignes.splice(+b.dataset.fdel,1);touchDv(dv);renderDevisEdit()});
 }
-function openPickOuv(dv){
-  if(!libOuv().length){sheet('<h2>Aucun ouvrage</h2><p class="small muted" style="margin:0">Crée d’abord tes ouvrages (sous-détails) dans l’onglet Ouvrages, puis ajoute-les à ce devis.</p><div class="row"><button class="btn primary" id="pkGo">Créer un ouvrage</button><button class="btn ghost" id="pkX">Fermer</button></div>',()=>{$('#pkX').addEventListener('click',closeSheet);$('#pkGo').addEventListener('click',()=>{closeSheet();newOuv()})});return}
+function openPickOuv(dv,p){
+  if(!libOuv().length){sheet('<h2>Aucun ouvrage</h2><p class="small muted" style="margin:0">Crée d’abord tes ouvrages (sous-détails) dans l’onglet Ouvrages. Tu peux aussi composer la ligne directement avec des ressources.</p><div class="row"><button class="btn primary" id="pkGo">Créer un ouvrage</button><button class="btn ghost" id="pkX">Fermer</button></div>',()=>{$('#pkX').addEventListener('click',closeSheet);$('#pkGo').addEventListener('click',()=>{closeSheet();newOuv()})});return}
   let added=0;
-  sheet('<div class="row"><h2 class="grow">Ajouter des ouvrages</h2><button class="btn primary" id="pkX">Terminé</button></div><input type="search" id="pkQ" placeholder="Rechercher (désignation ou n° de prix)" aria-label="Rechercher un ouvrage"><p class="small muted" id="pkMsg" style="margin:0">Touche un ouvrage pour l’ajouter. Tu saisiras les quantités ensuite.</p><div class="stack" id="pkList"></div>',()=>{
+  sheet('<div class="row"><h2 class="grow">'+(p?'Ouvrages dans la ligne':'Lignes depuis des ouvrages')+'</h2><button class="btn primary" id="pkX">Terminé</button></div><input type="search" id="pkQ" placeholder="Rechercher (désignation ou n° de prix)" aria-label="Rechercher un ouvrage"><p class="small muted" id="pkMsg" style="margin:0">'+(p?'Touche un ouvrage pour l’ajouter à « '+esc(p.des||'la ligne')+' ».':'Touche un ouvrage : il devient une ligne du devis.')+'</p><div class="stack" id="pkList"></div>',()=>{
     const draw=()=>{const q=($('#pkQ').value||'').toLowerCase();const list=libOuv().filter(o=>!q||((o.code||'')+' '+(o.des||'')).toLowerCase().includes(q)).sort((a,b)=>((a.code||'')+(a.des||'')).localeCompare((b.code||'')+(b.des||''),'fr'));
-      $('#pkList').innerHTML=list.map(o=>{const r=compute(o);const n=dv.lignes.filter(l=>{const x=S.ouv.find(y=>y.id===l.ouvId);return x&&(x.id===o.id||x.src===o.id)}).length;
-        return '<button class="btn" style="justify-content:space-between;text-align:left;font-weight:500" data-pick="'+o.id+'"><span style="flex:1;min-width:0;overflow-wrap:anywhere"><span class="mono small muted">'+esc(o.code||'sans n°')+'</span><br><b>'+esc(o.des||'Sans désignation')+'</b>'+(n?' <span class="pill ok">✓ '+n+'</span>':'')+'</span><span class="mono small">'+eur(r.pv)+' / '+esc(o.unite)+'</span></button>'}).join('')||'<p class="muted">Aucun ouvrage ne correspond.</p>';
+      $('#pkList').innerHTML=list.map(o=>{const r=compute(o);const n=p?p.items.filter(i=>i.ouvId===o.id).length:dv.lignes.filter(l=>(l.items||[]).some(i=>i.ouvId===o.id)).length;
+        return '<button class="btn" style="justify-content:space-between;text-align:left;font-weight:500" data-pick="'+o.id+'"><span style="flex:1;min-width:0;overflow-wrap:anywhere"><span class="mono small muted">'+esc(o.code||'sans n°')+' · '+esc(o.unite)+'</span><br><b>'+esc(o.des||'Sans désignation')+'</b>'+(n?' <span class="pill ok">✓ '+n+'</span>':'')+'</span><span class="mono small">'+eur(r.pv)+' / '+esc(o.unite)+'</span></button>'}).join('')||'<p class="muted">Aucun ouvrage ne correspond.</p>';
       $('#pkList').querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('click',()=>{const o=S.ouv.find(x=>x.id===b.dataset.pick);if(!o)return;
-        dv.lignes.push({id:uid(),type:'ouv',ouvId:o.id,q:num(o.q)});touchDv(dv);added++;$('#pkMsg').textContent=added+' ouvrage'+(added>1?'s ajoutés':' ajouté')+' au devis.';draw();renderDevisEdit()}))};
+        if(p){p.items.push({id:uid(),ouvId:o.id,ratio:o.unite===p.unite?1:null})}else dv.lignes.push(newPoste(o));
+        touchDv(dv);added++;$('#pkMsg').textContent=added+' ouvrage'+(added>1?'s ajoutés':' ajouté')+(p&&o.unite!==p.unite?' — saisis la quantité d’ouvrage par '+p.unite+'.':'.');draw();p?renderPoste():renderDevisEdit()}))};
     draw();$('#pkQ').addEventListener('input',draw);$('#pkX').addEventListener('click',closeSheet);
   });
 }
 function exportDevisXLSX(dv){
   if(!window.XLSX){toast('Export Excel indisponible (bibliothèque non chargée)');return}
   const c=computeDevis(dv),money='#,##0.00 "€"',r2=v=>+(+v).toFixed(2);
+  const L=x=>x.l;
   // 1. Devis (présentable au client : pas de déboursé)
   const A=[['Devis',dv.nom||''],['Client',dv.client||''],['Date',dateFr(dv.date)],[],['N°','Code','Désignation','Unité','Quantité','PU HT','Total HT']];const mA=[];
   const hasChap=c.chaps.length>0;let ci=0,li=0,open=null;
   const close=()=>{if(open){A.push(['','','Sous-total '+(open.l.titre||'chapitre'),'','','',r2(open.ht)]);mA.push([A.length-1,6]);A.push([]);open=null}};
   for(const x of c.rows){
     if(x.chap){close();ci++;li=0;open=x.c;A.push([String(ci),'',(x.l.titre||'Chapitre').toUpperCase()]);continue}
-    if(x.missing)continue;
-    li++;A.push([hasChap&&ci?ci+'.'+li:String(li),x.o.code||'',x.o.des||'',x.o.unite,x.q,x.r.pv,r2(x.tot)]);mA.push([A.length-1,5],[A.length-1,6]);
+    li++;A.push([hasChap&&ci?ci+'.'+li:String(li),L(x).code||'',L(x).des||'',L(x).unite,+x.q.toFixed(4),x.r.pv,r2(x.tot)]);mA.push([A.length-1,5],[A.length-1,6]);
   }
   close();A.push([]);
   A.push(['','','Total HT','','','',r2(c.ht)]);mA.push([A.length-1,6]);
   A.push(['','','TVA '+fx(c.tva)+' %','','','',r2(c.tvaAmt)]);mA.push([A.length-1,6]);
   A.push(['','','Total TTC','','','',r2(c.ttc)]);mA.push([A.length-1,6]);
   // 2. Analyse interne
-  const B=[['Code','Désignation','Unité','Quantité','Rendement (UO/j)','DS unitaire','PV unitaire','Coef','Total DS','Total HT','Marge',"Main-d'œuvre",'Matériel','Matériaux','Évacuation','Sous-traitance','Frais de chantier','Métré (formule)']];const mB=[];
-  for(const x of c.rows){if(x.chap||x.missing)continue;const b=x.r.blocs,q=x.q,f=x.r.ds*x.r.rFC*q;B.push([x.o.code||'',x.o.des||'',x.o.unite,q,x.r.R||'',+x.r.ds.toFixed(4),x.r.pv,x.r.ds?+(x.r.pv/x.r.ds).toFixed(3):'',r2(x.r.ds*q),r2(x.tot),r2(x.tot-x.r.ds*q-f),r2(b.MO*q),r2(b.MAT*q),r2(b.FOUR*q),r2(b.EVAC*q),r2(b.ST*q),r2(f),x.l.qf||'']);[5,6,8,9,10,11,12,13,14,15,16].forEach(k=>mB.push([B.length-1,k]))}
-  B.push(['','Total','','','','','','',r2(c.ds),r2(c.ht),r2(c.marge),r2(c.blocs.MO),r2(c.blocs.MAT),r2(c.blocs.FOUR),r2(c.blocs.EVAC),r2(c.blocs.ST),r2(c.fc),'']);[8,9,10,11,12,13,14,15,16].forEach(k=>mB.push([B.length-1,k]));
-  B.push([],['','Coefficient K appliqué','','','','','','',+c.K.toFixed(4)]);
-  if(c.fc){B.push(['','Frais de chantier ventilés']);(dv.fc.lignes||[]).forEach(x=>{if(num(x.montant)){B.push(['',x.nom||'Frais','','','','','','',r2(num(x.montant))]);mB.push([B.length-1,8])}});B.push(['','Taux de ventilation (frais ÷ DS)','','','','','','',F2.format(c.rFC*100)+' %'])}
+  const B=[['Code','Désignation','Unité','Quantité','Rendement (UO/j)','Durée (j)','DS unitaire','PV unitaire','Coef','Total DS','Total HT','Marge',"Main-d'œuvre",'Matériel','Matériaux','Évacuation','Sous-traitance','Frais de chantier','Métré (formule)','Composition']];const mB=[];
+  for(const x of c.rows){if(x.chap)continue;const b=x.r.blocs,q=x.q,f=x.r.ds*x.r.rFC*q;
+    B.push([L(x).code||'',L(x).des||'',L(x).unite,q,x.r.R||'',x.r.R>0&&q>0?+(q/x.r.R).toFixed(2):'',+x.r.ds.toFixed(4),x.r.pv,x.r.ds?+(x.r.pv/x.r.ds).toFixed(3):'',r2(x.r.ds*q),r2(x.tot),r2(x.tot-x.r.ds*q-f),r2(b.MO*q),r2(b.MAT*q),r2(b.FOUR*q),r2(b.EVAC*q),r2(b.ST*q),r2(f),L(x).qf||'',compTxt(x)]);
+    [6,7,9,10,11,12,13,14,15,16,17].forEach(k=>mB.push([B.length-1,k]))}
+  B.push(['','Total','','','','','','','',r2(c.ds),r2(c.ht),r2(c.marge),r2(c.blocs.MO),r2(c.blocs.MAT),r2(c.blocs.FOUR),r2(c.blocs.EVAC),r2(c.blocs.ST),r2(c.fc),'','']);[9,10,11,12,13,14,15,16,17].forEach(k=>mB.push([B.length-1,k]));
+  B.push([],['','Coefficient K appliqué','','','','','','','',+c.K.toFixed(4)]);
+  if(c.fc){B.push(['','Frais de chantier ventilés']);(dv.fc.lignes||[]).forEach(x=>{if(num(x.montant)){B.push(['',x.nom||'Frais','','','','','','','',r2(num(x.montant))]);mB.push([B.length-1,9])}});B.push(['','Taux de ventilation (frais ÷ DS)','','','','','','','',F2.format(c.rFC*100)+' %'])}
   // 3. Détail QDV : titres de chapitre + postes à la quantité du devis
   const Cr=[QDV_HEAD];
-  for(const x of c.rows){if(x.missing)continue;if(x.chap){Cr.push(['.','','','TITRE : '+(x.l.titre||'Chapitre').toUpperCase()]);continue}Cr.push(...qdvRows({...x.o,q:x.q},{K:c.K,rFC:c.rFC,qf:x.l.qf}))}
+  for(const x of c.rows){if(x.chap){Cr.push(['.','','','TITRE : '+(x.l.titre||'Chapitre').toUpperCase()]);continue}Cr.push(...qdvRows({...x.r.v},{K:c.K,rFC:c.rFC,qf:x.l.qf}))}
   Cr.push(['','','','Total déboursé sec du devis','','','','','','','',r2(c.ds)]);
   if(c.fc){Cr.push(['','','','Frais de chantier ventilés','','','','','','','',r2(c.fc)]);Cr.push(['','','','DSTU','','','','','','','',r2(c.dstu)])}
   Cr.push(['','','','Total HT','','','','','','','',r2(c.ht)]);
@@ -805,18 +979,17 @@ function exportDevisXLSX(dv){
   const Mr=[['Portée','Nom / désignation','Formule','Valeur','Unité']];
   const pushVars=(list,res,lbl)=>(list||[]).forEach((v,i)=>{if(!(v.nom||v.val))return;const r=res[i]||{};Mr.push([lbl,v.nom||'',v.val||'',r.v??(r.err||''),''])});
   pushVars(dv.vars,c.vres.dv,'Devis');
-  for(const x of c.rows){if(x.missing)continue;if(x.chap){Mr.push([],[(x.l.titre||'Chapitre').toUpperCase()]);pushVars(x.l.vars,c.vres[x.l.id]||[],'Chapitre');continue}Mr.push(['Poste',(x.o.code?x.o.code+' – ':'')+(x.o.des||''),x.l.qf||'',x.qr&&x.qr.err?x.qr.err:+x.q.toFixed(4),x.o.unite])}
+  for(const x of c.rows){if(x.chap){Mr.push([],[(x.l.titre||'Chapitre').toUpperCase()]);pushVars(x.l.vars,c.vres[x.l.id]||[],'Chapitre');continue}Mr.push(['Ligne',(L(x).code?L(x).code+' – ':'')+(L(x).des||''),L(x).qf||'',x.qr&&x.qr.err?x.qr.err:+x.q.toFixed(4),L(x).unite])}
   const wb=XLSX.utils.book_new();
   const add=(rows,name,cols,cells)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=cols.map(w=>({wch:w}));(cells||[]).forEach(([r,k])=>{const a=XLSX.utils.encode_cell({r,c:k});if(ws[a]&&typeof ws[a].v==='number')ws[a].z=money});XLSX.utils.book_append_sheet(wb,ws,name)};
   add(A,'Devis',[8,22,52,7,11,13,15],mA);
-  add(B,'Analyse interne',[22,48,7,10,12,12,12,7,14,14,13,13,13,13,13,13,13,24],mB);
+  add(B,'Analyse interne',[22,48,7,10,12,9,12,12,7,14,14,13,13,13,13,13,13,13,24,30],mB);
   add(Cr,'Détail QDV',[6,22,6,48,6,24,14,12,12,10,14,14,14]);
   add(Rr,'Ressources',[16,44,8,12,14],Rr.map((_,i)=>[i,4]));
   add(Mr,'Métré',[12,52,28,14,8]);
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
   saveFile(('Devis '+(dv.nom||dateFr(dv.date))).replace(/[\\/:*?"<>|]/g,'-').slice(0,80)+'.xlsx',new Blob([buf]));
 }
-
 /* ----- bibliothèque ----- */
 function renderLib(){
   $('#title').textContent='Bibliothèque';
@@ -980,8 +1153,8 @@ function qdvRows(o,opt){
   rows.push([1,'','Ouv.',o.des||'',o.unite,'[QEval]',+dur.toFixed(4),Q,r.R>0?r.R:'','','','','']);
   let n=2;
   for(const d of r.det){
-    if(d.bloc==='MO'||d.bloc==='MAT'){const qt=d.qteJour*dur;rows.push([n++,'','Art.',d.r.nom,(d.r.unite||'').toUpperCase(),d.qteJour,+qt.toFixed(4),'','',d.r.pu??'',+(qt*(d.r.pu||0)/Q).toFixed(4),+(qt*(d.r.pu||0)).toFixed(2),d.r.famille||CATS[d.bloc].nom])}
-    else if(d.bloc==='FOUR'||d.bloc==='ST'){const qt=d.qu*Q;rows.push([n++,'','Art.',d.r.nom+(d.bloc==='ST'?' (ST)':''),d.r.unite,'[Ratio]*'+String(+d.qu.toFixed(6)),+qt.toFixed(4),'','',+d.punet.toFixed(4),+(d.u).toFixed(4),+(d.u*Q).toFixed(2),d.r.famille||CATS[d.bloc].nom])}
+    if(d.bloc==='MO'||d.bloc==='MAT'){const qt=d.qteJour*dur;rows.push([n++,'','Art.',d.r.nom,(d.r.unite||'').toUpperCase(),d.qteJour,+qt.toFixed(4),'','',d.r.pu??'',+(qt*(d.r.pu||0)/Q).toFixed(4),+(qt*(d.r.pu||0)).toFixed(2),(d.l.src?d.l.src+' · ':'')+(d.r.famille||CATS[d.bloc].nom)])}
+    else if(d.bloc==='FOUR'||d.bloc==='ST'){const qt=d.qu*Q;rows.push([n++,'','Art.',d.r.nom+(d.bloc==='ST'?' (ST)':''),d.r.unite,'[Ratio]*'+String(+d.qu.toFixed(6)),+qt.toFixed(4),'','',+d.punet.toFixed(4),+(d.u).toFixed(4),+(d.u*Q).toFixed(2),(d.l.src?d.l.src+' · ':'')+(d.r.famille||CATS[d.bloc].nom)])}
     else if(d.bloc==='EVAC'){
       const camJ=d.jcam*Q,hch=d.hch*Q,t=d.tdech*Q;
       rows.push([n++,'','Art.',d.cam.nom,'J','[Ratio]*'+(+d.tu.toFixed(6))+'/'+(+d.tpj.toFixed(4)),+camJ.toFixed(4),'','',d.cam.pu??'',+d.uc.toFixed(4),+(d.uc*Q).toFixed(2),d.cam.famille||'Évacuation']);
