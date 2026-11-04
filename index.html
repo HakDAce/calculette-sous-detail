@@ -174,6 +174,8 @@ table.res tr.big td{font-family:var(--f-display);font-size:1.15rem;font-weight:7
 .dl-hd .chev{font-size:1.6rem;line-height:1;color:var(--lig);flex:none}
 .dl-in{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px}
 .dl-in .field label{font-size:.7rem}
+.temps{background:var(--surface2);border-radius:8px;padding:8px 10px}.temps .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+.dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .out2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.out2>div{background:var(--surface2);border-radius:6px;padding:8px 10px}
 .out2 .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}.out2 .v{font-family:var(--f-display);font-size:1.3rem;font-weight:700}
 .dl-out{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;background:var(--surface2);border-radius:6px;padding:7px 10px}
@@ -514,7 +516,7 @@ function ligneHTML(o,d){
     const r=d.r; const lib=!!l.ref;
     h+='<div class="top"><div class="nom">'+(lib?esc(r.nom):'<input type="text" data-k="nom" id="nom-'+l.id+'" value="'+esc(l.nom)+'" placeholder="Libellé" aria-label="Libellé">')+(r.broken?' <span class="pill bad">supprimé de la bibliothèque</span>':'')+(r.missing?' <span class="pill warn">prix à saisir</span>':'')+'</div><button class="btn sm ghost danger" data-del="'+l.id+'" aria-label="Supprimer la ligne">✕</button></div>';
     if(l.bloc==='MO'||l.bloc==='MAT'){
-      h+='<div class="grid3"><div class="field"><label for="nb-'+l.id+'">Nombre</label><input type="text" inputmode="decimal" class="numin" id="nb-'+l.id+'" data-k="nb" value="'+inval(l.nb)+'"></div>';
+      h+='<div class="grid3"><div class="field"><label for="nb-'+l.id+'">'+(l.bloc==='MO'?'Nb de personnes':'Nb d’engins')+'</label><input type="text" inputmode="decimal" class="numin" id="nb-'+l.id+'" data-k="nb" value="'+inval(l.nb)+'"></div>';
       if(d.isH)h+='<div class="field"><label for="hj-'+l.id+'">Heures / jour</label><input type="text" inputmode="decimal" class="numin" id="hj-'+l.id+'" data-k="hj" value="'+inval(l.hj)+'" placeholder="'+inval(S.settings.hj)+'"></div>';
       if(!lib)h+='<div class="field"><label for="un-'+l.id+'">Unité</label><select id="un-'+l.id+'" data-k="unite" data-rerender="1"><option value="h"'+(l.unite==='h'?' selected':'')+'>heure</option><option value="j"'+(l.unite==='j'?' selected':'')+'>jour</option></select></div>';
       h+='<div class="field"><label for="pu-'+l.id+'">'+(lib?'PU spécifique':'Prix unitaire')+' (€/'+esc(r.unite||'')+')</label><input type="text" inputmode="decimal" class="numin" id="pu-'+l.id+'" data-k="'+(lib?'puSpec':'pu')+'" value="'+inval(lib?l.puSpec:l.pu)+'" placeholder="'+(lib&&r.libPU!==null?inval(r.libPU):'')+'"></div></div>';
@@ -856,6 +858,17 @@ function refreshDevis(dv){
 function curPoste(){const dv=S.devis.find(d=>d.id===posteDv);const p=dv&&dv.lignes.find(l=>l.id===curId&&l.type==='poste');if(!p)return null;
   if(!Array.isArray(p.lignes))p.lignes=[];if(!Array.isArray(p.items))p.items=[];const c=computeDevis(dv);return {dv,p,c,x:c.rows.find(r=>r.l===p)}}
 const ADD_LBL={MO:"+ Main-d’œuvre",MAT:'+ Engin / matériel',FOUR:'+ Matériau',EVAC:'+ Évacuation',ST:'+ Sous-traitance'};
+// Temps passé sur la ligne : jours d'engins et heures de main-d'œuvre = nombre × durée de la ligne
+function tempsHTML(p,x){const r=x.r,q=x.q;if(r.missR||!(q>0))return '';
+  const days=r.R>0?q/r.R:null;const rows=[];
+  for(const d of r.det){
+    if(d.bloc==='MO'||d.bloc==='MAT'){const j=d.qteJour*r.dpu*q/(d.isH?d.hj:1);const tot=d.qteJour*r.dpu*q;
+      const how=days?fx(d.nb,2)+(d.isH?' × '+fx(d.hj)+' h':'')+' × '+fx(days,2)+' j':'';
+      rows.push([d.bloc,d.r.nom,d.l.src,how,fx(tot,2)+' '+(d.isH?'h':(d.r.unite||'j')),d.u*q])}
+    else if(d.bloc==='EVAC'){if(d.l.camion)rows.push(['EVAC',d.cam.nom,d.l.src,'',fx(d.jcam*q,2)+' j',d.uc*q]);if(d.l.chauffeur)rows.push(['EVAC',d.chf.nom,d.l.src,'',fx(d.hch*q,2)+' h',d.uh*q])}}
+  if(!rows.length)return '';
+  const seen={};rows.forEach(r=>{if(r[0]!=='EVAC')seen[r[1]]=(seen[r[1]]||0)+1});const dup=Object.keys(seen).filter(k=>seen[k]>1);
+  return (dup.length?'<div class="alert warn small">Compté'+(dup.length>1?'s':'')+' 2 fois : '+dup.map(esc).join(', ')+' (dans la ligne et dans un ouvrage). Garde-le à un seul endroit si c’est le même engin.</div>':'')+'<div class="temps"><div class="lbl">Temps sur chantier'+(days?' ('+fx(days,2)+' j)':'')+'</div><table class="res rs"><tbody>'+rows.map(([b,n,src,how,t,c])=>'<tr><td><i class="dot" style="background:var('+CATS[b].c+')"></i>'+esc(n)+(src?' <span class="small muted">· '+esc(src)+'</span>':'')+(how?'<br><span class="small muted mono">'+how+'</span>':'')+'</td><td><b>'+t+'</b></td><td>'+eur(c,0)+'</td></tr>').join('')+'</tbody></table></div>'}
 function rNote(p,x){if(x.r.missR)return '<div class="alert bad"><b>Rendement manquant.</b> Saisis combien de '+esc(p.unite||'unités')+' l’équipe fait par jour. Sans lui, la ligne n’est pas chiffrée.</div>';
   return num(p.r)>0?'<p class="small muted" style="margin:0">L’équipe et les engins sont comptés sur '+durTxt(x)+'.</p>':(x.r.items.length?'<p class="small muted" style="margin:0">Pas de rendement de ligne : chaque ouvrage garde le sien.</p>':'')}
 function itemCalc(p,x,it){if(it.missing)return '';const o=it.o;return '→ '+fx(it.rho*x.q,2)+' '+esc(o.unite)+' au total · <b>'+eur(it.u)+' / '+esc(p.unite||'')+'</b>'}
@@ -870,7 +883,7 @@ function renderPoste(){
      '<div class="grid3"><div class="field"><label for="p-q">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="p-q" value="'+esc(isF?p.qf:inval(p.q))+'" placeholder="300" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" id="p-fx" aria-pressed="'+isF+'" aria-label="Saisir une formule">ƒx</button></div><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" id="p-qres">'+esc(qresTxt(x))+'</span></div>'+
      '<div class="field"><label for="p-r">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="p-r" value="'+inval(p.r)+'" placeholder="100"></div>'+
      '<div class="field"><label>Durée</label><div class="mono" id="p-duree" style="padding:10px 2px;font-weight:600">'+durTxt(x)+'</div></div></div>'+
-     '<div id="p-rnote">'+rNote(p,x)+'</div>'+
+     '<div id="p-rnote">'+rNote(p,x)+'</div><div id="p-temps">'+tempsHTML(p,x)+'</div>'+
      det('p-info','N° de prix et unité','<div class="grid2"><div class="field"><label for="p-code">N° de prix</label><input type="text" id="p-code" value="'+esc(p.code)+'" placeholder="V050.014.20.0002.0"></div><div class="field"><label for="p-unite">Unité</label><select id="p-unite">'+unitOpts(p.unite)+'</select></div></div>')+'</div>';
   // 2. ouvrages
   const itTot=r.items.reduce((a,it)=>a+(it.u||0),0);
@@ -923,7 +936,7 @@ function refreshPoste(){
   const k=curPoste();if(!k)return;const {p,x}=k,r=x.r;
   $('#sumbar').innerHTML=posteSum(p,x);$('#resCard').innerHTML=resHTML(p,r);
   const q=$('#p-qres');if(q){q.textContent=qresTxt(x);q.classList.toggle('bad',!!(x.qr&&x.qr.err))}
-  $('#p-duree').textContent=durTxt(x);$('#p-rnote').innerHTML=rNote(p,x);
+  $('#p-duree').textContent=durTxt(x);$('#p-temps').innerHTML=tempsHTML(p,x);$('#p-rnote').innerHTML=rNote(p,x);
   for(const d of r.det){const el=document.querySelector('[data-calc="'+d.l.id+'"]');if(el)el.innerHTML=calcText(p,d)}
   for(const b of ['MO','MAT','FOUR','EVAC','ST']){const el=document.querySelector('[data-btot="'+b+'"]');if(el)el.textContent=eur(r.det.filter(d=>d.bloc===b&&p.lignes.includes(d.l)).reduce((a,d)=>a+d.u,0))+' / '+(p.unite||'')}
   for(const it of r.items){const el=document.querySelector('[data-icalc="'+it.it.id+'"]');if(el)el.innerHTML=itemCalc(p,x,it)}
