@@ -11,6 +11,10 @@ déboursé sec par blocs, coefficient de vente, prix de vente, valeur cible et e
 - **Prix de vente** arrondi au centime supérieur (option), total, marge.
 - **Valeur cible** : tu fixes le prix de vente, l'application calcule le rendement nécessaire et alerte si l'écart est trop fort.
 - **Devis** : regroupe des ouvrages avec leurs quantités (et des titres de chapitre) pour obtenir le prix total : total HT, TVA, TTC, déboursé sec, marge et durée estimée. Les prix suivent les sous-détails en direct. Export Excel en 3 onglets (Devis, Analyse interne, Détail QDV).
+- **Métré façon QDV** : variables du devis et de chapitre (ex. `S = 4000`, `E = 0,05`) et quantités en formule (`S*E` → 200 m³, `(L+2)*l`, `15%*S`). Virgule décimale, × ÷ acceptés, majuscules/minuscules distinctes (L ≠ l). Le bouton **ƒx** ouvre le clavier lettres.
+- **Adapter pour ce chantier** : copie d'un ouvrage propre au devis (modifiable sans toucher l'ouvrage de base ; les prix restent ceux de la bibliothèque).
+- **Frais de chantier ventilés** (option par devis) : répartis au prorata du déboursé sec de chaque poste (DS → DSTU), puis K. **K du devis** optionnel. Alerte de double compte si « encadrement » est déjà dans le K des réglages.
+- **Ressources du devis** : heures, jours, tonnes et déboursés par ressource. Export Excel en 5 onglets (Devis, Analyse interne, Détail QDV avec titres de chapitre, Ressources, Métré).
 - **Bibliothèque** de ressources, sans aucun prix par défaut. **Import Excel** : télécharge le modèle (ta bibliothèque actuelle), saisis les prix, réimporte ; aperçu des changements avant application, rien n'est effacé.
 - **Export Excel au format détail QDV** (onglets « Détail QDV » et « Récap »), copie pour Excel, sauvegarde et restauration (.json).
 
