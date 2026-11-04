@@ -21,7 +21,7 @@
 :root{
   --bg:#eef1f3; --surface:#ffffff; --surface2:#f6f8f9; --line:#d5dbe0; --fg:#1b2329; --muted:#5d6b75;
   --accent:#f2b705; --accent-ink:#1b2329; --accent-soft:#fdf3cf;
-  --mo:#3f6fa8; --mat:#c4692b; --four:#5e8a3a; --st:#7a5aa6; --evac:#8d7b5a;
+  --mo:#3f6fa8; --mat:#c4692b; --four:#5e8a3a; --st:#7a5aa6; --evac:#8d7b5a; --lig:#0f7c86; --ouv:#b0487a;
   --ok:#2e7d4f; --warn:#b26a00; --bad:#b3261e; --warn-bg:#fff4e0; --bad-bg:#fde8e6;
   --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -31,12 +31,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#12171b; --surface:#1a2127; --surface2:#20282f; --line:#313c45; --fg:#e6ebee; --muted:#9aa8b2;
   --accent:#f5c22a; --accent-ink:#12171b; --accent-soft:#3a3214;
-  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c;
+  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c; --lig:#4fb8c2; --ouv:#e27fab;
   --ok:#5fbf86; --warn:#e3a33c; --bad:#ef6b62; --warn-bg:#3a2c12; --bad-bg:#3d1c1a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#12171b; --surface:#1a2127; --surface2:#20282f; --line:#313c45; --fg:#e6ebee; --muted:#9aa8b2;
   --accent:#f5c22a; --accent-ink:#12171b; --accent-soft:#3a3214;
-  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c;
+  --mo:#7aa6dc; --mat:#e08a4d; --four:#8cbb62; --st:#a98bd6; --evac:#bba57c; --lig:#4fb8c2; --ouv:#e27fab;
   --ok:#5fbf86; --warn:#e3a33c; --bad:#ef6b62; --warn-bg:#3a2c12; --bad-bg:#3d1c1a; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45}
@@ -155,6 +155,53 @@ table.res tr.big td{font-family:var(--f-display);font-size:1.15rem;font-weight:7
 .qres{font-family:var(--f-mono);font-size:.82rem;color:var(--muted)}
 .fxb{font-family:var(--f-mono);font-style:italic;min-width:34px;padding-inline:6px}
 .fxb[aria-pressed=true]{background:var(--accent-soft)}
+/* devis lisible : bandes de couleur */
+.legend2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
+.legend2 i{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+#dvLines>.dv-chap{margin-top:18px}#dvLines>.dv-chap:first-child{margin-top:0}
+.dv-chap{display:block;border:0;padding:0}
+.dv-chap .band{display:flex;align-items:center;gap:8px;background:var(--fg);color:var(--bg);border-radius:8px;padding:6px 10px}
+.dv-chap .band input{background:transparent;border:0;color:inherit;font-family:var(--f-display);font-weight:700;font-size:1.12rem;text-transform:uppercase;letter-spacing:.04em;padding:6px 0;min-height:0;flex:1;min-width:0}
+.dv-chap .band input::placeholder{color:inherit;opacity:.55}
+.dv-chap .band .st{font-family:var(--f-mono);font-weight:600;white-space:nowrap}
+.dv-chap .band .btn{color:inherit;background:transparent;border-color:transparent}
+.dv-chap details{margin:6px 0 0 4px}
+.dl{border:1px solid var(--line);border-left:7px solid var(--lig);border-radius:8px;background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.dl.todo{border-left-color:var(--warn)}.dl.bad{border-left-color:var(--bad)}
+.dl-hd{display:flex;gap:8px;align-items:center;background:none;border:0;padding:0;text-align:left;cursor:pointer;width:100%;color:inherit;font:inherit}
+.dl-hd .t{flex:1;min-width:0;font-weight:600;overflow-wrap:anywhere;line-height:1.25}
+.dl-hd .t small{display:block;font-family:var(--f-mono);font-size:.76rem;color:var(--muted);font-weight:400}
+.dl-hd .chev{font-size:1.6rem;line-height:1;color:var(--lig);flex:none}
+.dl-in{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px}
+.dl-in .field label{font-size:.7rem}
+.out2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.out2>div{background:var(--surface2);border-radius:6px;padding:8px 10px}
+.out2 .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}.out2 .v{font-family:var(--f-display);font-size:1.3rem;font-weight:700}
+.dl-out{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;background:var(--surface2);border-radius:6px;padding:7px 10px}
+.dl-out .dur{font-family:var(--f-mono);color:var(--muted);font-size:.84rem}
+.dl-out .pu{font-family:var(--f-mono);font-size:.88rem;color:var(--muted)}.dl-out .pu b{color:var(--fg);font-weight:600}
+.dl-out .tot{margin-left:auto;font-family:var(--f-display);font-weight:700;font-size:1.3rem;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tags:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:.76rem;font-weight:600;border-radius:99px;padding:2px 9px;background:var(--surface2);border:1px solid var(--line);color:var(--muted)}
+.chip.ouv{background:var(--surface);border-color:var(--ouv);color:var(--ouv)}
+.chip.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}.chip.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.dv-ctl{display:none;gap:4px;justify-content:flex-end;align-items:center}.reorder .dv-ctl{display:flex}
+.reorder .dv-chap .band .dv-ctl{display:flex}
+details.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+details.box>summary,details.sub>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details.box>summary{font-family:var(--f-display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:1.02rem}
+details>summary::-webkit-details-marker{display:none}
+details.box>summary::after,details.sub>summary::after{content:"+";font-family:var(--f-mono);font-size:1.1rem;color:var(--muted)}
+details.box[open]>summary::after,details.sub[open]>summary::after{content:"−"}
+details.box[open]>summary{margin-bottom:10px}
+details.box>summary .muted{font-family:var(--f-body);text-transform:none;letter-spacing:0;font-weight:400;font-size:.85rem;margin-left:auto}
+details.sub{border-top:1px solid var(--line);padding-top:8px}details.sub>summary{font-weight:600;padding-block:4px}
+details.sub[open]>summary{margin-bottom:6px}
+.sec{border-left:7px solid var(--c)}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sec-h h3{color:var(--c);margin:0}.sec-h .tot{margin-left:auto;font-family:var(--f-mono);font-weight:500}
+.ouvc{border-left:5px solid var(--ouv)}
+.addb{border-left:4px solid var(--c)}
+.big-in input{font-size:1.15rem;font-weight:600}
 .linkb{background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit;font-weight:600}
 .linkb:hover{text-decoration:underline}
 .addrow{display:flex;flex-wrap:wrap;gap:6px}
@@ -232,7 +279,7 @@ const $=s=>document.querySelector(s);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){if(v===null||v===undefined)return null;if(typeof v==='number')return isFinite(v)?v:null;const t=String(v).replace(/\s/g,'').replace(',','.');if(t==='')return null;const n=Number(t);return isFinite(n)?n:null}
 const nf=(d)=>new Intl.NumberFormat('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
-const F2=nf(2),F3=nf(3),F0=nf(0);
+const F2=nf(2),F3=nf(3),F0=nf(0),F1=nf(1);
 function eur(v,d=2){return v===null||v===undefined||!isFinite(v)?'—':(d===0?F0:F2).format(v)+' €'}
 function fx(v,d=2){if(v===null||v===undefined||!isFinite(v))return '—';return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:d}).format(v)}
 function inval(v){return v===null||v===undefined?'':String(v).replace('.',',')}
@@ -310,6 +357,9 @@ let libCat='MO';
 
 let ret=null; // retour vers le devis quand on ouvre un ouvrage depuis un devis
 let posteDv=null; // devis de la ligne ouverte
+const openDet=new Set(); let reorder=false; // volets ouverts, mode réorganiser
+function det(k,title,inner,cls,extra){return '<details class="'+(cls||'sub')+'" data-dk="'+k+'"'+(openDet.has(k)?' open':'')+'><summary><span>'+title+'</span>'+(extra||'')+'</summary>'+inner+'</details>'}
+function bindDetails(root){(root||document).querySelectorAll('details[data-dk]').forEach(d=>d.addEventListener('toggle',()=>{d.open?openDet.add(d.dataset.dk):openDet.delete(d.dataset.dk)}))}
 function setView(v,id,back){if(v==='edit')ret=back||null;view=v;curId=id??null;if(v!=='edit'&&v!=='devisEdit'&&v!=='poste'){try{localStorage.setItem(KEY+'_tab',v)}catch(e){}}render();window.scrollTo(0,0)}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('#backBtn').addEventListener('click',()=>{if(view==='edit'&&ret){const r=ret;ret=null;setView(r.view,r.id)}else if(view==='poste')setView('devisEdit',posteDv);else setView(view==='devisEdit'?'devis':'list')});
@@ -708,56 +758,71 @@ function dvSumHTML(c){
   const tot=c.ds||0;const seg=['MO','MAT','FOUR','EVAC','ST'].map(b=>tot>0&&c.blocs[b]>0?'<span style="width:'+(c.blocs[b]/tot*100)+'%;background:var('+CATS[b].c+')" title="'+CATS[b].nom+'"></span>':'').join('');
   return '<div class="card"><div class="kpi"><div class="lbl">Déboursé sec</div><div class="val">'+eur(c.ds,0)+'</div></div><div class="kpi pv"><div class="lbl">Total HT</div><div class="val">'+eur(c.ht,0)+'</div></div><div class="bar" aria-hidden="true">'+seg+'</div></div>';
 }
+function lineState(x){const empty=!(x.l.lignes||[]).length&&!(x.l.items||[]).length;return x.r.missR?'bad':empty||x.r.warn.length||!(x.q>0)?'todo':''}
+function tagsHTML(x){const ni=(x.l.items||[]).length,nr=(x.l.lignes||[]).length;let h='';
+  if(x.r.missR)h+='<span class="chip bad">⚠ rendement manquant</span>';
+  else if(!ni&&!nr)h+='<span class="chip warn">à composer</span>';
+  else if(!(x.q>0))h+='<span class="chip warn">quantité à saisir</span>';
+  else if(x.r.warn.length)h+='<span class="chip warn">à compléter</span>';
+  if(ni)h+='<span class="chip ouv">'+ni+' ouvrage'+(ni>1?'s':'')+'</span>';
+  if(nr)h+='<span class="chip">'+nr+' ressource'+(nr>1?'s':'')+'</span>';
+  return h}
 function dvLinesHTML(dv,c){
-  if(!c.rows.length)return '<p class="muted small" style="margin:0">Aucune ligne. Crée tes lignes à la main (« + Ligne ») ou importe ton DQE / BPU, puis compose chaque ligne avec des ouvrages et des ressources.</p>';
-  const mv=id=>'<span class="mv"><button class="btn sm ghost" data-up="'+id+'" aria-label="Monter">↑</button><button class="btn sm ghost" data-down="'+id+'" aria-label="Descendre">↓</button></span>';
-  const del=id=>'<button class="btn sm ghost danger" data-del="'+id+'" aria-label="Retirer la ligne">✕</button>';
+  if(!c.rows.length)return '<p class="muted small" style="margin:0">Aucune ligne. Crée une ligne ou importe ton DQE / BPU.</p>';
+  const ctl=id=>'<span class="dv-ctl"><button class="btn sm ghost" data-up="'+id+'" aria-label="Monter">↑</button><button class="btn sm ghost" data-down="'+id+'" aria-label="Descendre">↓</button><button class="btn sm ghost danger" data-del="'+id+'" aria-label="Supprimer">✕</button></span>';
   return c.rows.map(x=>{const id=x.l.id;
-    if(x.chap)return '<div class="dv-chap" data-lid="'+id+'"><div class="grow stack" style="gap:6px"><input type="text" data-k="titre" value="'+esc(x.l.titre)+'" placeholder="Titre du chapitre (ex. Terrassements)" aria-label="Titre du chapitre"><span class="small muted">Sous-total : <span class="st" data-st="'+id+'">'+eur(x.c.ht)+'</span></span>'+varsHTML(x.l.vars,id,c.vres[id])+'</div>'+mv(id)+del(id)+'</div>';
-    const l=x.l,r=x.r,u=esc(l.unite||''),isF=!!l.qf,empty=!(l.lignes||[]).length&&!(l.items||[]).length;
-    return '<div class="dv-line" data-lid="'+id+'"><div class="hd"><button class="des" data-compose="'+id+'"><small>'+esc(l.code||'sans n°')+' · '+u+'</small><span>'+esc(l.des||'Sans désignation')+'</span>'+(empty?' <span class="pill warn">à composer</span>':r.missR?' <span class="pill bad">rendement manquant</span>':r.warn.length||r.noR?' <span class="pill warn">à compléter</span>':'')+'</button>'+mv(id)+del(id)+'</div>'+
-      '<div class="grid2"><div class="field"><label for="dq-'+id+'">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="dq-'+id+'" data-k="q" value="'+esc(isF?l.qf:inval(l.q))+'" placeholder="0 ou S*0,05" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" data-fx="'+id+'" aria-pressed="'+isF+'" aria-label="Saisir une formule (clavier lettres)" title="Formule">ƒx</button></div></div>'+
-      '<div class="field"><label for="dr-'+id+'">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="dr-'+id+'" data-k="r" value="'+inval(l.r)+'" placeholder="—"></div>'+
-      '<div class="field"><label>PU HT</label><div class="ro" data-pu="'+id+'">'+puTxt(x)+'</div></div>'+
-      '<div class="field"><label>Total HT</label><div class="ro tot" data-tot="'+id+'">'+eur(x.tot)+'</div></div></div>'+
-      '<div class="qline"><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" data-qres="'+id+'">'+esc(qresTxt(x))+'</span><span class="small muted" data-comp="'+id+'">'+esc(compTxt(x))+'</span><button class="btn sm" data-compose="'+id+'">Composer ›</button></div></div>';
+    if(x.chap){const nv=(x.l.vars||[]).filter(v=>v.nom).length;
+      return '<div class="dv-chap" data-lid="'+id+'"><div class="band"><input type="text" data-k="titre" value="'+esc(x.l.titre)+'" placeholder="Titre du chapitre" aria-label="Titre du chapitre"><span class="st" data-st="'+id+'">'+eur(x.c.ht,0)+'</span>'+ctl(id)+'</div>'+
+        det('cv-'+id,'Variables du chapitre'+(nv?' ('+nv+')':''),varsHTML(x.l.vars,id,c.vres[id]))+'</div>'}
+    const l=x.l,u=esc(l.unite||''),isF=!!l.qf;
+    return '<div class="dl '+lineState(x)+'" data-lid="'+id+'"><button class="dl-hd" data-compose="'+id+'"><span class="t"><small>'+esc(l.code||'sans n°')+'</small>'+esc(l.des||'Sans désignation')+'</span><span class="chev" aria-hidden="true">›</span></button>'+
+      '<div class="dl-in"><div class="field"><label for="dq-'+id+'">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="dq-'+id+'" data-k="q" value="'+esc(isF?l.qf:inval(l.q))+'" placeholder="0" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" data-fx="'+id+'" aria-pressed="'+isF+'" aria-label="Saisir une formule">ƒx</button></div><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" data-qres="'+id+'">'+esc(qresTxt(x))+'</span></div>'+
+      '<div class="field"><label for="dr-'+id+'">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="dr-'+id+'" data-k="r" value="'+inval(l.r)+'" placeholder="'+(x.r.missR?'à saisir':'—')+'"></div></div>'+
+      '<div class="dl-out"><span class="dur" data-dur="'+id+'">⏱ '+durTxt(x)+'</span><span class="pu">PU <b data-pu="'+id+'">'+puTxt(x)+'</b></span><span class="tot" data-tot="'+id+'">'+eur(x.tot)+'</span></div>'+
+      '<div class="tags" data-comp="'+id+'">'+tagsHTML(x)+'</div>'+ctl(id)+'</div>';
   }).join('');
 }
 function dvTotalsHTML(dv,c){
-  let h='<h3>Récapitulatif</h3><table class="res"><tbody>';
+  let h='<h3>Total du devis</h3><table class="res"><tbody>';
   for(const ch of c.chaps)h+='<tr><td>'+esc(ch.l.titre||'Chapitre sans titre')+'</td><td>'+eur(ch.ht)+'</td></tr>';
   h+='<tr class="big"><td>Total HT</td><td>'+eur(c.ht)+'</td></tr><tr><td>TVA '+fx(c.tva)+' %</td><td>'+eur(c.tvaAmt)+'</td></tr><tr class="big"><td>Total TTC</td><td>'+eur(c.ttc)+'</td></tr></tbody></table>';
-  h+='<h3>Analyse interne</h3>';
-  if(c.ds)h+='<div class="legend">'+['MO','MAT','FOUR','EVAC','ST'].filter(b=>c.blocs[b]).map(b=>'<span><i style="background:var('+CATS[b].c+')"></i>'+CATS[b].nom+' '+F0.format(c.blocs[b]/c.ds*100)+' %</span>').join('')+'</div>';
-  h+='<table class="res"><tbody><tr><td>Déboursé sec total</td><td>'+eur(c.ds)+'</td></tr>'+
-    (c.fc?'<tr><td>Frais de chantier ventilés (+'+F2.format(c.rFC*100)+' %)</td><td>'+eur(c.fc)+'</td></tr><tr><td>Déboursé total (DSTU)</td><td>'+eur(c.dstu)+'</td></tr>':'')+
-    '<tr><td>Marge brute (HT − '+(c.fc?'DSTU':'DS')+')</td><td>'+eur(c.marge)+(c.ht?' ('+F2.format(c.marge/c.ht*100)+' %)':'')+'</td></tr><tr><td>Coefficient K appliqué</td><td>× '+F3.format(c.K)+'</td></tr><tr><td>Coefficient moyen (HT ÷ DS)</td><td>'+(c.ds?'× '+F3.format(c.ht/c.ds):'—')+'</td></tr><tr><td>Durée estimée (une équipe)</td><td>'+(c.jours?fx(c.jours,1)+' j':'—')+'</td></tr></tbody></table>';
-  if(c.res.length){h+='<details class="rsd"><summary>Ressources du devis ('+c.res.length+')</summary><table class="res rs"><tbody>';let g='';
-    for(const e of c.res){if(e.bloc!==g){g=e.bloc;h+='<tr class="grp"><td colspan="3">'+CATS[g].nom+'</td></tr>'}h+='<tr><td>'+esc(e.nom)+'</td><td>'+fx(e.q,2)+' '+esc(e.u)+'</td><td>'+eur(e.cost)+'</td></tr>'}
-    h+='</tbody></table></details>'}
-  if(c.warn.length)h+='<div class="alert warn">'+c.warn.map(esc).join('<br>')+'</div>';
-  h+='<p class="small muted" style="margin:0">Les prix suivent tes ouvrages : si tu modifies un sous-détail ou un prix de la bibliothèque, le devis se met à jour.</p>';
+  let a='';
+  if(c.ds)a+='<div class="legend">'+['MO','MAT','FOUR','EVAC','ST'].filter(b=>c.blocs[b]).map(b=>'<span><i style="background:var('+CATS[b].c+')"></i>'+CATS[b].nom+' '+F0.format(c.blocs[b]/c.ds*100)+' %</span>').join('')+'</div>';
+  a+='<table class="res"><tbody><tr><td>Déboursé sec</td><td>'+eur(c.ds)+'</td></tr>'+
+    (c.fc?'<tr><td>Frais de chantier (+'+F2.format(c.rFC*100)+' %)</td><td>'+eur(c.fc)+'</td></tr><tr><td>DSTU</td><td>'+eur(c.dstu)+'</td></tr>':'')+
+    '<tr><td>Marge brute</td><td>'+eur(c.marge)+(c.ht?' ('+F1.format(c.marge/c.ht*100)+' %)':'')+'</td></tr><tr><td>Coefficient K</td><td>× '+F3.format(c.K)+'</td></tr><tr><td>Durée totale (une équipe)</td><td>'+(c.jours?fx(c.jours,1)+' j':'—')+'</td></tr></tbody></table>';
+  if(c.warn.length)a+='<div class="alert warn small">'+c.warn.map(esc).join('<br>')+'</div>';
+  h+=det('t-ana','Analyse interne (déboursé, marge)',a);
+  if(c.res.length){let r='<table class="res rs"><tbody>';let g='';
+    for(const e of c.res){if(e.bloc!==g){g=e.bloc;r+='<tr class="grp"><td colspan="3">'+CATS[g].nom+'</td></tr>'}r+='<tr><td>'+esc(e.nom)+'</td><td>'+fx(e.q,2)+' '+esc(e.u)+'</td><td>'+eur(e.cost)+'</td></tr>'}
+    h+=det('t-res','Ressources du devis ('+c.res.length+')',r+'</tbody></table>')}
   return h;
 }
+function dvWarnHTML(c){const n={bad:0,todo:0};c.rows.forEach(x=>{if(!x.chap){const st=lineState(x);if(st)n[st]++}});
+  if(!n.bad&&!n.todo)return '';return '<div class="alert '+(n.bad?'bad':'warn')+' small">'+[n.bad?n.bad+' ligne'+(n.bad>1?'s':'')+' sans rendement (bande rouge)':'',n.todo?n.todo+' ligne'+(n.todo>1?'s':'')+' à compléter (bande orange)':''].filter(Boolean).join(' · ')+'</div>'}
 function renderDevisEdit(){
   const dv=curDv(); if(!dv){setView('devis');return}
   $('#title').textContent=dv.nom||'Nouveau devis';
-  const c=computeDevis(dv);
+  const c=computeDevis(dv);const nv=(dv.vars||[]).filter(v=>v.nom).length;
   let h='<div class="sumbar" id="dvSum">'+dvSumHTML(c)+'</div><div class="stack">';
   h+='<div class="card stack"><div class="field"><label for="dv-nom">Chantier / objet</label><input type="text" id="dv-nom" value="'+esc(dv.nom)+'" placeholder="Réfection rue des Postes – Lille"></div>'+
-     '<div class="grid3"><div class="field"><label for="dv-cli">Client</label><input type="text" id="dv-cli" value="'+esc(dv.client)+'" placeholder="MEL"></div>'+
+     det('info','Client, date, TVA','<div class="grid3"><div class="field"><label for="dv-cli">Client</label><input type="text" id="dv-cli" value="'+esc(dv.client)+'" placeholder="MEL"></div>'+
      '<div class="field"><label for="dv-date">Date</label><input type="date" id="dv-date" value="'+esc(dv.date||'')+'"></div>'+
-     '<div class="field"><label for="dv-tva">TVA %</label><input type="text" inputmode="decimal" class="numin" id="dv-tva" value="'+inval(dv.tva)+'" placeholder="20"></div></div></div>';
-  h+='<div class="card stack"><div class="bloc-head"><h3>Métré : variables du devis</h3></div><p class="small muted" style="margin:0">Ex. <b>S</b> = 4000 (m² de chaussée). Dans une quantité, tape une formule : <span class="mono">S*0,05</span> → 200 m³. Majuscules et minuscules comptent (L ≠ l). Les variables d’un chapitre ne servent qu’à ce chapitre.</p><div id="dvVars">'+varsHTML(dv.vars,'dv',c.vres.dv)+'</div></div>';
-  h+='<div class="card stack"><div class="bloc-head"><h3>Lignes du devis</h3><span class="tot muted small">'+c.nOuv+' ligne'+(c.nOuv>1?'s':'')+'</span></div><div id="dvLines">'+dvLinesHTML(dv,c)+'</div>'+
-     '<div class="addrow"><button class="btn primary" id="dvNew">+ Ligne</button><button class="btn" id="dvChap">+ Titre de chapitre</button><button class="btn" id="dvImp">Importer DQE / BPU</button><button class="btn ghost" id="dvAdd">+ Ligne depuis un ouvrage</button></div>'+
+     '<div class="field"><label for="dv-tva">TVA %</label><input type="text" inputmode="decimal" class="numin" id="dv-tva" value="'+inval(dv.tva)+'" placeholder="20"></div></div>')+'</div>';
+  h+='<div class="card stack"><div class="bloc-head"><h3>Lignes du devis</h3><button class="btn sm ghost" id="dvReo" aria-pressed="'+reorder+'" style="margin-left:auto">'+(reorder?'Terminé':'Réorganiser')+'</button></div>'+
+     '<div class="legend2"><span><i style="background:var(--fg)"></i>Chapitre</span><span><i style="background:var(--lig)"></i>Ligne prête</span><span><i style="background:var(--warn)"></i>À compléter</span><span><i style="background:var(--bad)"></i>Rendement manquant</span></div>'+
+     '<div id="dvWarn">'+dvWarnHTML(c)+'</div><div id="dvLines"'+(reorder?' class="reorder"':'')+'>'+dvLinesHTML(dv,c)+'</div>'+
+     '<div class="addrow"><button class="btn primary" id="dvNew">+ Ligne</button><button class="btn" id="dvChap">+ Chapitre</button><button class="btn" id="dvImp">Importer DQE / BPU</button></div>'+
+     '<div class="addrow"><button class="btn sm ghost" id="dvAdd">+ Ligne à partir d’un ouvrage</button></div>'+
      '<input type="file" id="dvFile" accept=".xlsx,.xls,.xlsm,.csv" hidden></div>';
-  h+='<div class="card stack" id="dvFc">'+dvFcHTML(dv,c)+'</div>';
+  h+=det('vars','Variables du métré','<p class="small muted" style="margin:0 0 8px">Ex. <b>S</b> = 4000. Dans une quantité, touche <b>ƒx</b> et tape <span class="mono">S*0,05</span>. L ≠ l.</p><div id="dvVars">'+varsHTML(dv.vars,'dv',c.vres.dv)+'</div>','box',nv?'<span class="muted">'+nv+'</span>':'');
+  h+=det('fc','Frais de chantier et K','<div class="stack" id="dvFc">'+dvFcHTML(dv,c)+'</div>','box',dv.fc&&dv.fc.on?'<span class="muted">ventilés</span>':'');
   h+='<div class="card stack" id="dvTotals">'+dvTotalsHTML(dv,c)+'</div>';
   h+='<div class="row"><button class="btn" id="dvExp">Exporter (Excel)</button><button class="btn" id="dvDup">Dupliquer</button><button class="btn danger" id="dvDel">Supprimer le devis</button></div></div>';
-  const app=$('#app');app.innerHTML=h;
+  const app=$('#app');app.innerHTML=h;bindDetails(app);
   const bind=(id,key,isNum,re)=>{const el=$('#'+id);el.addEventListener(el.type==='date'?'change':'input',()=>{dv[key]=isNum?num(el.value):el.value;touchDv(dv);if(key==='nom')$('#title').textContent=dv.nom||'Nouveau devis';if(re)refreshDevis(dv)})};
   bind('dv-nom','nom');bind('dv-cli','client');bind('dv-date','date');bind('dv-tva','tva',true,true);
+  $('#dvReo').addEventListener('click',()=>{reorder=!reorder;renderDevisEdit()});
   const box=$('#dvLines');
   box.addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;const row=e.target.closest('[data-lid]');const l=dv.lignes.find(x=>x.id===row.dataset.lid);if(!l)return;
     if(k==='q')setQ(l,e.target.value);else if(k==='r')l.r=num(e.target.value);else l[k]=e.target.value;
@@ -766,7 +831,7 @@ function renderDevisEdit(){
     if(b.dataset.compose){openPoste(dv,b.dataset.compose);return}
     if(b.dataset.fx){const f=$('#dq-'+b.dataset.fx);const on=f.inputMode!=='text';f.inputMode=on?'text':'decimal';b.setAttribute('aria-pressed',on);f.blur();setTimeout(()=>f.focus(),30);return}
     const mvId=b.dataset.up||b.dataset.down;if(mvId){const i=dv.lignes.findIndex(x=>x.id===mvId),j=b.dataset.up?i-1:i+1;if(i<0||j<0||j>=dv.lignes.length)return;[dv.lignes[i],dv.lignes[j]]=[dv.lignes[j],dv.lignes[i]];touchDv(dv);renderDevisEdit();return}});
-  box.querySelectorAll('[data-del]').forEach(b=>armDelete(b,()=>{dv.lignes=dv.lignes.filter(x=>x.id!==b.dataset.del);cleanCopies(dv);touchDv(dv);renderDevisEdit()},'Retirer ?'));
+  box.querySelectorAll('[data-del]').forEach(b=>armDelete(b,()=>{dv.lignes=dv.lignes.filter(x=>x.id!==b.dataset.del);cleanCopies(dv);touchDv(dv);renderDevisEdit()},'Supprimer ?'));
   bindVars(box,dv);bindVars($('#dvVars'),dv);bindFc(dv);
   $('#dvNew').addEventListener('click',()=>{const p=newPoste();dv.lignes.push(p);touchDv(dv);openPoste(dv,p.id);setTimeout(()=>{const f=$('#p-des');f&&f.focus()},40)});
   $('#dvChap').addEventListener('click',()=>{const l={id:uid(),type:'chap',titre:'',vars:[]};dv.lignes.push(l);touchDv(dv);renderDevisEdit();setTimeout(()=>{const f=document.querySelector('[data-lid="'+l.id+'"] input');f&&f.focus()},30)});
@@ -780,9 +845,10 @@ function renderDevisEdit(){
   armDelete($('#dvDel'),()=>{S.devis=S.devis.filter(x=>x.id!==dv.id);S.ouv=S.ouv.filter(o=>o.dv!==dv.id);save();toast('Devis supprimé');setView('devis')});
 }
 function refreshDevis(dv){
-  const c=computeDevis(dv);$('#dvSum').innerHTML=dvSumHTML(c);const op=$('#dvTotals details.rsd');const wasOpen=op&&op.open;$('#dvTotals').innerHTML=dvTotalsHTML(dv,c);if(wasOpen){const d=$('#dvTotals details.rsd');d&&(d.open=true)}
+  const c=computeDevis(dv);$('#dvSum').innerHTML=dvSumHTML(c);$('#dvTotals').innerHTML=dvTotalsHTML(dv,c);bindDetails($('#dvTotals'));const w=$('#dvWarn');if(w)w.innerHTML=dvWarnHTML(c);
   const set=(sel,txt,bad)=>{const e=document.querySelector(sel);if(e){e.textContent=txt;if(bad!==undefined)e.classList.toggle('bad',!!bad)}};
-  for(const x of c.rows){const id=x.l.id;if(x.chap){set('[data-st="'+id+'"]',eur(x.c.ht))}else{set('[data-tot="'+id+'"]',eur(x.tot));set('[data-pu="'+id+'"]',puTxt(x));set('[data-qres="'+id+'"]',qresTxt(x),x.qr&&x.qr.err);set('[data-comp="'+id+'"]',compTxt(x))}}
+  for(const x of c.rows){const id=x.l.id;if(x.chap){set('[data-st="'+id+'"]',eur(x.c.ht,0))}else{set('[data-tot="'+id+'"]',eur(x.tot));set('[data-pu="'+id+'"]',puTxt(x));set('[data-dur="'+id+'"]','⏱ '+durTxt(x));set('[data-qres="'+id+'"]',qresTxt(x),x.qr&&x.qr.err);
+    const tg=document.querySelector('[data-comp="'+id+'"]');if(tg)tg.innerHTML=tagsHTML(x);const row=document.querySelector('.dl[data-lid="'+id+'"]');if(row){row.classList.remove('bad','todo');const st=lineState(x);if(st)row.classList.add(st)}}}
   for(const k in c.vres){const list=k==='dv'?dv.vars:(dv.lignes.find(x=>x.id===k)||{}).vars;c.vres[k].forEach((r,i)=>set('[data-vres="'+k+':'+i+'"]',varResTxt((list||[])[i]||{},r),r.err))}
   set('#fcRes',fcResTxt(dv,c));
 }
@@ -790,44 +856,46 @@ function refreshDevis(dv){
 function curPoste(){const dv=S.devis.find(d=>d.id===posteDv);const p=dv&&dv.lignes.find(l=>l.id===curId&&l.type==='poste');if(!p)return null;
   if(!Array.isArray(p.lignes))p.lignes=[];if(!Array.isArray(p.items))p.items=[];const c=computeDevis(dv);return {dv,p,c,x:c.rows.find(r=>r.l===p)}}
 const ADD_LBL={MO:"+ Main-d’œuvre",MAT:'+ Engin / matériel',FOUR:'+ Matériau',EVAC:'+ Évacuation',ST:'+ Sous-traitance'};
-function rNote(p,x){if(x.r.missR)return '<div class="alert bad"><b>Rendement manquant.</b> Saisis le rendement de la ligne (ex. 1 500 '+esc(p.unite||'')+'/j pour un rabotage). Sans lui, la main-d’œuvre et les engins seraient comptés 1 jour par '+esc(p.unite||'unité')+' : la ligne n’est pas chiffrée.</div>';return num(p.r)>0?'<p class="small muted" style="margin:0">Main-d’œuvre et engins de la ligne <b>et de ses ouvrages</b> comptés sur '+durTxt(x)+' (quantité ÷ rendement). Matériaux et évacuation suivent la quantité.</p>':'<div class="alert info small">Sans rendement de ligne, chaque ouvrage garde son propre rendement. Saisis un rendement (ex. 100 '+esc(p.unite||'')+'/j) pour compter toute la main-d’œuvre et les engins sur la durée de la ligne.</div>'}
-function itemCalc(p,x,it){if(it.missing)return '';const o=it.o;return 'Total '+fx(it.rho*x.q,2)+' '+esc(o.unite)+' · coût <b>'+eur(it.u)+'/'+esc(p.unite||'')+'</b>'+(num(p.r)>0?'':' · rendement de l’ouvrage '+(num(o.r)>0?fx(num(o.r))+' '+esc(o.unite)+'/j':'non saisi'))}
+function rNote(p,x){if(x.r.missR)return '<div class="alert bad"><b>Rendement manquant.</b> Saisis combien de '+esc(p.unite||'unités')+' l’équipe fait par jour. Sans lui, la ligne n’est pas chiffrée.</div>';
+  return num(p.r)>0?'<p class="small muted" style="margin:0">L’équipe et les engins sont comptés sur '+durTxt(x)+'.</p>':(x.r.items.length?'<p class="small muted" style="margin:0">Pas de rendement de ligne : chaque ouvrage garde le sien.</p>':'')}
+function itemCalc(p,x,it){if(it.missing)return '';const o=it.o;return '→ '+fx(it.rho*x.q,2)+' '+esc(o.unite)+' au total · <b>'+eur(it.u)+' / '+esc(p.unite||'')+'</b>'}
 function renderPoste(){
   const k=curPoste(); if(!k){setView(posteDv?'devisEdit':'devis',posteDv);return}
   const {dv,p,x}=k,r=x.r,u=esc(p.unite||''),isF=!!p.qf;
   $('#title').textContent=p.des||'Nouvelle ligne';
-  let h='<div class="sumbar" id="sumbar">'+sumHTML(p,r.missR?{...r,pv:null}:r)+'</div><div class="stack">';
-  h+='<div class="card stack"><div class="grid2"><div class="field"><label for="p-code">N° de prix</label><input type="text" id="p-code" value="'+esc(p.code)+'" placeholder="V050.014.20.0002.0"></div>'+
-     '<div class="field"><label for="p-unite">Unité</label><select id="p-unite">'+unitOpts(p.unite)+'</select></div></div>'+
-     '<div class="field"><label for="p-des">Désignation</label><input type="text" id="p-des" value="'+esc(p.des)+'" placeholder="Terrassement en déblai"></div>'+
-     '<div class="grid3"><div class="field"><label for="p-q">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="p-q" value="'+esc(isF?p.qf:inval(p.q))+'" placeholder="300" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" id="p-fx" aria-pressed="'+isF+'" aria-label="Saisir une formule (clavier lettres)">ƒx</button></div><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" id="p-qres">'+esc(qresTxt(x))+'</span></div>'+
+  let h='<div class="sumbar" id="sumbar">'+posteSum(p,x)+'</div><div class="stack">';
+  // 1. la ligne
+  h+='<div class="card stack sec" style="--c:var(--lig)"><div class="sec-h"><h3>① Ligne du devis</h3></div>'+
+     '<div class="field big-in"><label for="p-des">Désignation</label><input type="text" id="p-des" value="'+esc(p.des)+'" placeholder="Terrassement en déblai"></div>'+
+     '<div class="grid3"><div class="field"><label for="p-q">Quantité ('+u+')</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="text" inputmode="'+(isF?'text':'decimal')+'" class="numin" id="p-q" value="'+esc(isF?p.qf:inval(p.q))+'" placeholder="300" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn sm ghost fxb" id="p-fx" aria-pressed="'+isF+'" aria-label="Saisir une formule">ƒx</button></div><span class="qres'+(x.qr&&x.qr.err?' bad':'')+'" id="p-qres">'+esc(qresTxt(x))+'</span></div>'+
      '<div class="field"><label for="p-r">Rendement ('+u+'/j)</label><input type="text" inputmode="decimal" class="numin" id="p-r" value="'+inval(p.r)+'" placeholder="100"></div>'+
-     '<div class="field"><label>Durée</label><div class="mono" id="p-duree" style="padding:10px 2px">'+durTxt(x)+'</div></div></div>'+
-     '<div id="p-rnote">'+rNote(p,x)+'</div></div>';
-  // ouvrages inclus
+     '<div class="field"><label>Durée</label><div class="mono" id="p-duree" style="padding:10px 2px;font-weight:600">'+durTxt(x)+'</div></div></div>'+
+     '<div id="p-rnote">'+rNote(p,x)+'</div>'+
+     det('p-info','N° de prix et unité','<div class="grid2"><div class="field"><label for="p-code">N° de prix</label><input type="text" id="p-code" value="'+esc(p.code)+'" placeholder="V050.014.20.0002.0"></div><div class="field"><label for="p-unite">Unité</label><select id="p-unite">'+unitOpts(p.unite)+'</select></div></div>')+'</div>';
+  // 2. ouvrages
   const itTot=r.items.reduce((a,it)=>a+(it.u||0),0);
-  h+='<section class="bloc stack" style="--c:var(--accent)"><div class="bloc-head"><h3>Ouvrages (Ouv.)</h3><span class="tot" id="p-ouvtot">'+eur(itTot)+' / '+u+'</span></div>'+
-     '<p class="small muted" style="margin:0">Quantité d’ouvrage par '+u+' de ligne. Même unité : 1. Ex. ligne en m², déblai en m³ sur 30 cm : 0,30.</p>';
+  h+='<section class="card stack sec" style="--c:var(--ouv)"><div class="sec-h"><h3>② Ouvrages</h3><span class="tot" id="p-ouvtot">'+eur(itTot)+' / '+u+'</span></div>';
+  if(!r.items.length)h+='<p class="small muted" style="margin:0">Ajoute tes sous-détails (déblai, GNT, enrobé…).</p>';
   for(const it of r.items){const id=it.it.id;
-    if(it.missing){h+='<div class="ligne" data-iid="'+id+'"><div class="top"><div class="nom">Ouvrage supprimé <span class="pill bad">à retirer</span></div><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer">✕</button></div></div>';continue}
-    const o=it.o;
-    h+='<div class="ligne" data-iid="'+id+'"><div class="top"><button class="nom linkb" data-iopen="'+o.id+'"><span class="mono small muted">'+esc(o.code||'sans n°')+' · '+esc(o.unite)+'</span><br>'+esc(o.des||'Sans désignation')+'</button><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer l’ouvrage">✕</button></div>'+
-       '<div class="field"><label for="ir-'+id+'">'+esc(o.unite)+' d’ouvrage par '+u+'</label><input type="text" inputmode="decimal" class="numin" id="ir-'+id+'" data-ir="'+id+'" value="'+inval(it.it.ratio)+'" placeholder="1"></div>'+
+    if(it.missing){h+='<div class="ligne ouvc" data-iid="'+id+'"><div class="top"><div class="nom">Ouvrage supprimé <span class="pill bad">à retirer</span></div><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer">✕</button></div></div>';continue}
+    const o=it.o,same=o.unite===p.unite;
+    h+='<div class="ligne ouvc" data-iid="'+id+'"><div class="top"><button class="nom linkb" data-iopen="'+o.id+'">'+esc(o.des||'Sans désignation')+' <span class="mono small muted">'+esc(o.unite)+'</span></button><button class="btn sm ghost danger" data-idel="'+id+'" aria-label="Retirer l’ouvrage">✕</button></div>'+
+       '<div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center"><input type="text" inputmode="decimal" class="numin" style="max-width:110px" id="ir-'+id+'" data-ir="'+id+'" value="'+inval(it.it.ratio)+'" placeholder="'+(same?'1':'0,30')+'" aria-label="'+esc(o.unite)+' par '+u+'"><span class="small">'+esc(o.unite)+' par '+u+(same?'':' <span class="muted">(ex. 0,30 pour 30 cm)</span>')+'</span></div>'+
        '<div class="calc" data-icalc="'+id+'">'+itemCalc(p,x,it)+'</div></div>';
   }
-  h+='<div class="row"><button class="btn sm" id="p-addOuv">+ Ajouter un ouvrage</button></div></section>';
-  // ressources directes
+  h+='<div class="addrow"><button class="btn sm addb" style="--c:var(--ouv)" id="p-addOuv">+ Ouvrage</button></div></section>';
+  // 3. ressources
   const own=d=>p.lignes.includes(d.l);
-  h+='<section class="bloc stack" style="--c:var(--fg)"><div class="bloc-head"><h3>Ressources de la ligne (Art.)</h3></div>';
+  h+='<section class="card stack sec" style="--c:var(--muted)"><div class="sec-h"><h3 style="color:var(--fg)">③ Ressources en plus</h3></div>';
+  if(!p.lignes.length)h+='<p class="small muted" style="margin:0">Optionnel : main-d’œuvre, engins, matériaux… ajoutés directement à la ligne.</p>';
   for(const b of ['MO','MAT','FOUR','EVAC','ST']){const lines=r.det.filter(d=>d.bloc===b&&own(d));if(!lines.length)continue;
-    h+='<div class="bloc-head" style="--c:var('+CATS[b].c+')"><h3>'+CATS[b].nom+'</h3><span class="tot" data-btot="'+b+'">'+eur(lines.reduce((a,d)=>a+d.u,0))+' / '+u+'</span></div>'+lines.map(d=>ligneHTML(p,d)).join('')}
-  h+='<div class="addrow">'+['MO','MAT','FOUR','EVAC','ST'].map(b=>'<button class="btn sm" data-add="'+b+'">'+ADD_LBL[b]+'</button>').join('')+'</div></section>';
-  // valeur cible
-  h+='<div class="card target stack"><h3>Valeur cible</h3><p class="small" style="margin:0">Tu fixes le prix de vente de la ligne, la calculette trouve le rendement.</p>'+
-     '<div class="field"><label for="p-cible">Prix de vente visé (€ HT / '+u+')</label><input type="text" inputmode="decimal" class="numin" id="p-cible" value="'+inval(p.cible)+'" placeholder="ex. 18,50"></div><div id="p-cibleOut"></div></div>';
-  h+='<div class="card stack" id="resCard">'+resHTML(p,r)+'</div>';
+    h+='<div class="bloc stack" style="--c:var('+CATS[b].c+')"><div class="bloc-head"><h3>'+CATS[b].nom+'</h3><span class="tot" data-btot="'+b+'">'+eur(lines.reduce((a,d)=>a+d.u,0))+' / '+u+'</span></div>'+lines.map(d=>ligneHTML(p,d)).join('')+'</div>'}
+  h+='<div class="addrow">'+['MO','MAT','FOUR','EVAC','ST'].map(b=>'<button class="btn sm addb" style="--c:var('+CATS[b].c+')" data-add="'+b+'">'+ADD_LBL[b]+'</button>').join('')+'</div></section>';
+  // 4. volets
+  h+=det('p-cible','Valeur cible (trouver le rendement)','<div class="field"><label for="p-cible">Prix de vente visé (€ HT / '+u+')</label><input type="text" inputmode="decimal" class="numin" id="p-cible" value="'+inval(p.cible)+'" placeholder="ex. 18,50"></div><div id="p-cibleOut"></div>','box');
+  h+=det('p-det','Détail du prix','<div class="stack" id="resCard">'+resHTML(p,r)+'</div>','box');
   h+='<div class="row"><button class="btn" id="p-save">Enregistrer comme ouvrage</button><button class="btn" id="p-dup">Dupliquer la ligne</button><button class="btn danger" id="p-del">Supprimer la ligne</button></div></div>';
-  const app=$('#app');app.innerHTML=h;
+  const app=$('#app');app.innerHTML=h;bindDetails(app);
   const tp=()=>touchDv(dv);
   $('#p-code').addEventListener('input',e=>{p.code=e.target.value;tp()});
   $('#p-des').addEventListener('input',e=>{p.des=e.target.value;$('#title').textContent=p.des||'Nouvelle ligne';tp()});
@@ -843,14 +911,17 @@ function renderPoste(){
   app.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>openAdd(p,b.dataset.add)));
   bindLignes(p);
   $('#p-save').addEventListener('click',()=>{const v=posteOuv(p,num(p.q)).v;const o={id:uid(),code:p.code||'',des:p.des||'Ouvrage',unite:p.unite,q:null,r:v.r,lignes:v.lignes.map(l=>{const c=JSON.parse(JSON.stringify(l));c.id=uid();delete c.src;return c}),upd:Date.now()};
-    if(!v.r&&p.items.length)toast('Saisis d’abord un rendement de ligne : sans lui, les équipes des ouvrages ne se cumulent pas proprement');else{S.ouv.push(o);save();toast('Ouvrage « '+(o.des)+' » ajouté à tes ouvrages')}});
+    if(!v.r&&p.items.length)toast('Saisis d’abord un rendement de ligne');else{S.ouv.push(o);save();toast('Ouvrage « '+(o.des)+' » ajouté à tes ouvrages')}});
   $('#p-dup').addEventListener('click',()=>{const c=JSON.parse(JSON.stringify(p));c.id=uid();c.des=(p.des||'Ligne')+' (copie)';c.items.forEach(i=>i.id=uid());c.lignes.forEach(l=>l.id=uid());dv.lignes.splice(dv.lignes.indexOf(p)+1,0,c);tp();toast('Ligne dupliquée');openPoste(dv,c.id)});
   armDelete($('#p-del'),()=>{dv.lignes=dv.lignes.filter(l=>l!==p);cleanCopies(dv);tp();toast('Ligne supprimée');setView('devisEdit',dv.id)});
   posteCible(k);
 }
+function posteSum(p,x){const r=x.r;
+  return '<div class="card" style="border-left:7px solid var('+(r.missR?'--bad':'--lig')+')"><div class="kpi"><div class="lbl">Prix de vente / '+esc(p.unite||'')+'</div><div class="val">'+(r.missR?'—':eur(r.pv))+'</div></div><div class="kpi pv"><div class="lbl">Total de la ligne</div><div class="val">'+(r.missR?'—':eur(x.tot,0))+'</div></div></div>'}
+
 function refreshPoste(){
   const k=curPoste();if(!k)return;const {p,x}=k,r=x.r;
-  $('#sumbar').innerHTML=sumHTML(p,r.missR?{...r,pv:null}:r);$('#resCard').innerHTML=resHTML(p,r);
+  $('#sumbar').innerHTML=posteSum(p,x);$('#resCard').innerHTML=resHTML(p,r);
   const q=$('#p-qres');if(q){q.textContent=qresTxt(x);q.classList.toggle('bad',!!(x.qr&&x.qr.err))}
   $('#p-duree').textContent=durTxt(x);$('#p-rnote').innerHTML=rNote(p,x);
   for(const d of r.det){const el=document.querySelector('[data-calc="'+d.l.id+'"]');if(el)el.innerHTML=calcText(p,d)}
@@ -917,8 +988,7 @@ function previewDQE(dv,res){
 function fcResTxt(dv,c){return c.fc?'Total '+eur(c.fc)+' → +'+F2.format(c.rFC*100)+' % sur le déboursé sec de chaque poste (DS '+eur(c.ds,0)+' → DSTU '+eur(c.dstu,0)+')':(dv.fc&&dv.fc.on?'Saisis les montants des frais de chantier.':'')}
 function dvFcHTML(dv,c){
   const on=!!(dv.fc&&dv.fc.on);const s=S.settings;
-  let h='<div class="bloc-head"><h3>Frais de chantier et coefficient</h3></div>';
-  h+='<div class="grid2"><div class="field"><label for="fcMode">Frais de chantier</label><select id="fcMode"><option value="">Dans le coefficient K</option><option value="v"'+(on?' selected':'')+'>Ventilés sur les postes</option></select></div>'+
+  let h='<div class="grid2"><div class="field"><label for="fcMode">Frais de chantier</label><select id="fcMode"><option value="">Dans le coefficient K</option><option value="v"'+(on?' selected':'')+'>Ventilés sur les postes</option></select></div>'+
      '<div class="field"><label for="dv-k">Coef. K du devis</label><input type="text" inputmode="decimal" class="numin" id="dv-k" value="'+inval(dv.k)+'" placeholder="'+F3.format(coefK())+' (réglages)"></div></div>';
   if(on){
     h+='<p class="small muted" style="margin:0">Comme QDV : les frais (installation, encadrement, signalisation…) sont répartis au prorata du déboursé sec de chaque poste, puis le K s’applique.</p><div class="stack" id="fcLines" style="gap:6px">'+
